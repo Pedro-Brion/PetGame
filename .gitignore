@@ -66,3 +66,4 @@ bld/
 *.pdb
 *.ilk
 *.tlog
+*.sln
