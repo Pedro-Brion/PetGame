@@ -1,6 +1,26 @@
 # Prerequisites
 *.d
 
+.DS_Store
+Thumbs.db
+
+# Pasta de build principal do CMake
+build/
+/build/
+
+# Pastas de build do Visual Studio
+[Bb]in/
+[Dd]ebug/
+[Rr]elease/
+x64/
+/x64/
+x86/
+/x86/
+[Ww]in32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+
 # Compiled Object files
 *.slo
 *.lo
@@ -31,5 +51,18 @@
 *.out
 *.app
 
-.vs/*
-.vs
+# Arquivos do Visual Studio e de cache
+.vs/
+.vscode/
+*.suo
+*.user
+*.sln.docstates
+
+# Arquivos compilados
+*.exe
+*.dll
+*.lib
+*.obj
+*.pdb
+*.ilk
+*.tlog
