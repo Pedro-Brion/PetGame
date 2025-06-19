@@ -11,7 +11,7 @@ namespace PetGame {
 			m_name(name),
 			m_hunger(50),
 			m_experience(0),
-			m_level(Level::Egg),
+			m_level(Level::Puppy),
 			m_currentState(nullptr),
 			m_position(0.f, 0.f),
 			m_size(0.f, 0.f),
@@ -23,7 +23,7 @@ namespace PetGame {
 			setTextures();
 
 
-			m_size = glm::vec2(64.f);
+			m_size = glm::vec2(128.f);
 			static const glm::vec2 center = (glm::vec2(800.f, 600.f) / 2.f) - (m_size);
 			m_position = center;
 		}
@@ -56,8 +56,8 @@ namespace PetGame {
 
 			switch (m_level) {
 			case (Level::Egg):
-				m_position = glm::vec2(center.x + (glm::sin(time * 10.f) * 2.f), center.y);
-				//m_rotation = -glm::sin(time * 10.f) * 10.f;
+				m_position = glm::vec2(center.x + (glm::sin(time * 12.f) * 2.f), center.y);
+				m_rotation = -glm::sin(time * 12.f) * 8.f;
 				break;
 			case (Level::Puppy):
 				m_position = glm::vec2(center.x, center.y + (glm::sin(time) * 2.f));
@@ -66,7 +66,7 @@ namespace PetGame {
 				m_position = m_position + glm::vec2(glm::sin(time), glm::cos(time));
 			}
 
-			m_position = center;
+			//m_position = center;
 		}
 
 		void Pet::ChangeState(IState* newState, int tick)
@@ -128,7 +128,7 @@ namespace PetGame {
 
 		void Pet::setTextures()
 		{
-			m_textures[Level::Egg] = Texture2D::CreateTexture("assets/debug.png");
+			m_textures[Level::Egg] = Texture2D::CreateTexture("assets/digitama.png");
 			m_textures[Level::Puppy] = Texture2D::CreateTexture("assets/baby1.png");
 		}
 

@@ -1,6 +1,10 @@
 #include "Application.h"
 #include "iostream"
 #include "string"
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 
 namespace PetGame {
 	static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
@@ -23,7 +27,6 @@ namespace PetGame {
 	Application::~Application()
 	{
 		delete m_shaderProgram;
-		Stop();
 	}
 
 	bool Application::Init(const int width, const int height, const char* windowTitle)
@@ -36,12 +39,19 @@ namespace PetGame {
 			return false;
 		}
 
+
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 		m_window = glfwCreateWindow(m_windowWidth, m_windowHeight, windowTitle, nullptr, nullptr);
 		glfwSetWindowUserPointer(m_window, this);
+
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
 
 		if (m_window == NULL) {
@@ -50,8 +60,12 @@ namespace PetGame {
 			return false;
 		}
 
+
 		// Conecting GLFW current context
 		glfwMakeContextCurrent(m_window);
+
+		ImGui_ImplGlfw_InitForOpenGL(m_window, true);          // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
+		ImGui_ImplOpenGL3_Init();
 
 		// RegisterCallBack
 		glfwSetFramebufferSizeCallback(m_window, framebuffer_size_callback);
@@ -106,17 +120,49 @@ namespace PetGame {
 				m_timeAccumulator -= m_fixedTickDuration;
 			}
 
+			glfwPollEvents();
+
+			ImGui_ImplOpenGL3_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+			ImGui::NewFrame();
+
+			ImGui::SetNextWindowSize(ImVec2(m_windowWidth, 50), ImGuiCond_Always); // Set size (width, height)
+			ImGui::SetNextWindowPos(ImVec2(0, m_windowHeight - 50), ImGuiCond_Always);  // Set position (x, y)
+
+			ImGuiWindowFlags flags =
+				ImGuiWindowFlags_NoResize
+				| ImGuiWindowFlags_NoMove
+				| ImGuiWindowFlags_NoCollapse;
+			if (m_guiOpen)
+			{
+				if (ImGui::Begin("DigiPet", &m_guiOpen, flags)) {
+					ImGui::Text(m_pet->getName().c_str());
+					ImGui::End();
+				}
+				else {
+					ImGui::End();
+				}
+			}
+
+			//ImGui::ShowDemoWindow();
+
+
 			ProcessInputs();
 			Render();
-			glfwPollEvents();
 		}
 	}
 
 	void Application::Stop()
 	{
+		ImGui_ImplOpenGL3_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
+		ImGui::DestroyContext();
+
 		glfwTerminate();
+
 		m_window = nullptr;
 		std::cout << "Stoped" << std::endl;
+
 	}
 
 	void Application::setWindowSize(int width, int height)
@@ -148,14 +194,14 @@ namespace PetGame {
 		// Z Train
 		static bool zKeyPressed = false;
 		if (glfwGetKey(m_window, GLFW_KEY_Z) == GLFW_PRESS && !zKeyPressed) {
-			m_pet->train(5);
+			m_pet->displayStatus();
 			zKeyPressed = true;
 		} if (glfwGetKey(m_window, GLFW_KEY_Z) == GLFW_RELEASE) zKeyPressed = false;
 
 		// X Display Status
 		static bool xKeyPressed = false;
 		if (glfwGetKey(m_window, GLFW_KEY_X) == GLFW_PRESS && !xKeyPressed) {
-			m_pet->displayStatus();
+			m_guiOpen = true;
 			xKeyPressed = true;
 		} if (glfwGetKey(m_window, GLFW_KEY_X) == GLFW_RELEASE) xKeyPressed = false;
 
@@ -183,6 +229,9 @@ namespace PetGame {
 		glClearColor(.941f, .917f, .854f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		UpdateRender();
+
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		glfwSwapBuffers(m_window);
 	}

@@ -36,6 +36,8 @@ namespace PetGame {
 		DigiPet::Pet* m_pet;
 		SpriteRenderer* m_renderer;
 
+		bool m_guiOpen = false;
+
 		void ProcessInputs();
 		void UpdateRender();
 		void FixedUpdate();
