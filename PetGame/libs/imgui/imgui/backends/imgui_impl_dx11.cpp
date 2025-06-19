@@ -77,7 +77,12 @@ struct ImGui_ImplDX11_Data
     int                         VertexBufferSize;
     int                         IndexBufferSize;
 
-    ImGui_ImplDX11_Data()       { memset((void*)this, 0, sizeof(*this)); VertexBufferSize = 5000; IndexBufferSize = 10000; }
+    /**
+ * @brief Constructs an ImGui_ImplDX11_Data object with default buffer sizes.
+ *
+ * Initializes all members to zero and sets the default vertex buffer size to 5000 and index buffer size to 10000.
+ */
+ImGui_ImplDX11_Data()       { memset((void*)this, 0, sizeof(*this)); VertexBufferSize = 5000; IndexBufferSize = 10000; }
 };
 
 struct VERTEX_CONSTANT_BUFFER_DX11
@@ -86,13 +91,23 @@ struct VERTEX_CONSTANT_BUFFER_DX11
 };
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
-// It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
+/**
+ * @brief Retrieves the DirectX 11 backend data for the current Dear ImGui context.
+ *
+ * @return Pointer to the backend data structure, or nullptr if no ImGui context is active.
+ */
 static ImGui_ImplDX11_Data* ImGui_ImplDX11_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplDX11_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
 }
 
-// Functions
+/**
+ * @brief Configures the DirectX 11 device context for rendering ImGui draw data.
+ *
+ * Sets up the viewport, orthographic projection matrix, input layout, vertex and index buffers, shaders, samplers, and all necessary DirectX 11 render states required for ImGui rendering.
+ *
+ * @param draw_data ImGui draw data containing display size and position information.
+ */
 static void ImGui_ImplDX11_SetupRenderState(ImDrawData* draw_data, ID3D11DeviceContext* device_ctx)
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
@@ -150,7 +165,13 @@ static void ImGui_ImplDX11_SetupRenderState(ImDrawData* draw_data, ID3D11DeviceC
     device_ctx->RSSetState(bd->pRasterizerState);
 }
 
-// Render function
+/**
+ * @brief Renders Dear ImGui draw data using DirectX 11.
+ *
+ * Uploads ImGui's vertex and index data to GPU buffers, sets up the DirectX 11 pipeline state, and issues draw calls for each ImGui draw command. Handles dynamic buffer resizing, texture updates, user callbacks, and proper backup and restoration of the device context state to avoid interfering with the application's rendering state. Rendering is skipped if the display size is zero or negative.
+ *
+ * @param draw_data Pointer to the ImDrawData structure containing all ImGui draw lists and rendering information for the current frame.
+ */
 void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data)
 {
     // Avoid rendering when minimized
@@ -334,6 +355,11 @@ void ImGui_ImplDX11_RenderDrawData(ImDrawData* draw_data)
     device->IASetInputLayout(old.InputLayout); if (old.InputLayout) old.InputLayout->Release();
 }
 
+/**
+ * @brief Releases and destroys a DirectX 11 texture associated with the given ImTextureData.
+ *
+ * Frees the DirectX 11 texture and shader resource view, deletes backend texture data, and marks the texture as destroyed in ImTextureData.
+ */
 static void ImGui_ImplDX11_DestroyTexture(ImTextureData* tex)
 {
     ImGui_ImplDX11_Texture* backend_tex = (ImGui_ImplDX11_Texture*)tex->BackendUserData;
@@ -350,6 +376,13 @@ static void ImGui_ImplDX11_DestroyTexture(ImTextureData* tex)
     tex->BackendUserData = nullptr;
 }
 
+/**
+ * @brief Creates, updates, or destroys a DirectX 11 texture based on the status of the given ImTextureData.
+ *
+ * If the texture status is `WantCreate`, allocates a new DirectX 11 2D texture and shader resource view from the provided RGBA32 pixel data and updates the texture's identifiers.  
+ * If the status is `WantUpdates`, updates specified regions of the texture with new pixel data.  
+ * If the status is `WantDestroy` and the texture is unused, destroys the associated DirectX 11 resources.
+ */
 void ImGui_ImplDX11_UpdateTexture(ImTextureData* tex)
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
@@ -413,6 +446,13 @@ void ImGui_ImplDX11_UpdateTexture(ImTextureData* tex)
         ImGui_ImplDX11_DestroyTexture(tex);
 }
 
+/**
+ * @brief Creates all necessary DirectX 11 device objects for ImGui rendering.
+ *
+ * Compiles and creates the vertex and pixel shaders, input layout, constant buffer, blend state, rasterizer state, depth-stencil state, and font sampler required for rendering ImGui draw data with DirectX 11. Invalidates and releases any existing device objects before creation.
+ *
+ * @return true if all device objects were successfully created, false otherwise.
+ */
 bool    ImGui_ImplDX11_CreateDeviceObjects()
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
@@ -580,6 +620,11 @@ bool    ImGui_ImplDX11_CreateDeviceObjects()
     return true;
 }
 
+/**
+ * @brief Releases all DirectX 11 device objects and destroys ImGui textures with a single reference.
+ *
+ * Frees GPU resources such as shaders, buffers, states, and samplers created by the ImGui DirectX 11 backend. Also destroys any ImGui textures that are no longer shared. This function is typically called during shutdown or when the device is lost.
+ */
 void    ImGui_ImplDX11_InvalidateDeviceObjects()
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
@@ -603,6 +648,15 @@ void    ImGui_ImplDX11_InvalidateDeviceObjects()
     if (bd->pVertexShader)          { bd->pVertexShader->Release(); bd->pVertexShader = nullptr; }
 }
 
+/**
+ * @brief Initializes the Dear ImGui DirectX 11 renderer backend.
+ *
+ * Sets up backend data structures, stores device and device context pointers, configures backend capabilities, and queries the DXGI factory from the provided DirectX 11 device. Must be called before using other renderer functions.
+ *
+ * @param device Pointer to the DirectX 11 device.
+ * @param device_context Pointer to the DirectX 11 device context.
+ * @return true if initialization succeeds.
+ */
 bool    ImGui_ImplDX11_Init(ID3D11Device* device, ID3D11DeviceContext* device_context)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -640,6 +694,11 @@ bool    ImGui_ImplDX11_Init(ID3D11Device* device, ID3D11DeviceContext* device_co
     return true;
 }
 
+/**
+ * @brief Shuts down the DirectX 11 renderer backend for Dear ImGui and releases all associated resources.
+ *
+ * Releases DirectX 11 device, device context, and DXGI factory references, invalidates device objects, clears backend data from ImGui IO, and resets backend flags.
+ */
 void ImGui_ImplDX11_Shutdown()
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();
@@ -656,6 +715,11 @@ void ImGui_ImplDX11_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Prepares the DirectX 11 backend for a new ImGui frame.
+ *
+ * Ensures that all required DirectX 11 device objects are created before rendering the next ImGui frame.
+ */
 void ImGui_ImplDX11_NewFrame()
 {
     ImGui_ImplDX11_Data* bd = ImGui_ImplDX11_GetBackendData();

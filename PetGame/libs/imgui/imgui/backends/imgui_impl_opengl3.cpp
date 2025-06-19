@@ -248,11 +248,18 @@ struct ImGui_ImplOpenGL3_Data
     bool            UseBufferSubData;
     ImVector<char>  TempBuffer;
 
-    ImGui_ImplOpenGL3_Data() { memset((void*)this, 0, sizeof(*this)); }
+    /**
+ * @brief Constructs an ImGui_ImplOpenGL3_Data object with all members initialized to zero.
+ */
+ImGui_ImplOpenGL3_Data() { memset((void*)this, 0, sizeof(*this)); }
 };
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
-// It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
+/**
+ * @brief Retrieves the OpenGL 3 renderer backend data for the current Dear ImGui context.
+ *
+ * @return Pointer to the backend data if a current ImGui context exists, otherwise nullptr.
+ */
 static ImGui_ImplOpenGL3_Data* ImGui_ImplOpenGL3_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplOpenGL3_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
@@ -265,6 +272,13 @@ struct ImGui_ImplOpenGL3_VtxAttribState
     GLint   Enabled, Size, Type, Normalized, Stride;
     GLvoid* Ptr;
 
+    /**
+     * @brief Retrieves and stores the OpenGL vertex attribute state for a given attribute index.
+     *
+     * Queries the enabled state, size, type, normalization, stride, and pointer for the specified vertex attribute index and stores them in the corresponding member variables.
+     *
+     * @param index The index of the vertex attribute to query.
+     */
     void GetState(GLint index)
     {
         glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_ENABLED, &Enabled);
@@ -274,6 +288,13 @@ struct ImGui_ImplOpenGL3_VtxAttribState
         glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_STRIDE, &Stride);
         glGetVertexAttribPointerv(index, GL_VERTEX_ATTRIB_ARRAY_POINTER, &Ptr);
     }
+    /**
+     * @brief Configures and enables or disables a vertex attribute array at the specified index.
+     *
+     * Sets the vertex attribute pointer for the given index using the stored attribute parameters, and enables or disables the attribute array based on the Enabled flag.
+     *
+     * @param index Index of the vertex attribute to configure.
+     */
     void SetState(GLint index)
     {
         glVertexAttribPointer(index, Size, Type, (GLboolean)Normalized, Stride, Ptr);
@@ -284,6 +305,11 @@ struct ImGui_ImplOpenGL3_VtxAttribState
 
 // Not static to allow third-party code to use that if they want to (but undocumented)
 bool ImGui_ImplOpenGL3_InitLoader();
+/**
+ * @brief Initializes the internal OpenGL function loader if required.
+ *
+ * @return true if the loader is successfully initialized or not needed; false if initialization fails.
+ */
 bool ImGui_ImplOpenGL3_InitLoader()
 {
     // Initialize our loader
@@ -297,7 +323,14 @@ bool ImGui_ImplOpenGL3_InitLoader()
     return true;
 }
 
-// Functions
+/**
+ * @brief Initializes the Dear ImGui OpenGL 3 renderer backend.
+ *
+ * Sets up the backend for rendering ImGui draw data using OpenGL, including OpenGL version and profile detection, backend capability flags, GLSL version string, and supported extensions. This function must be called before using any other ImGui OpenGL 3 renderer functions.
+ *
+ * @param glsl_version Optional GLSL version string (e.g., "#version 130"). If nullptr, a suitable default is chosen based on the platform and OpenGL profile.
+ * @return true if initialization succeeds, false if the OpenGL loader fails to initialize.
+ */
 bool    ImGui_ImplOpenGL3_Init(const char* glsl_version)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -410,6 +443,11 @@ bool    ImGui_ImplOpenGL3_Init(const char* glsl_version)
     return true;
 }
 
+/**
+ * @brief Shuts down the OpenGL 3 renderer backend for Dear ImGui and releases all associated resources.
+ *
+ * Cleans up device objects, resets backend flags and user data, and deletes the backend data structure.
+ */
 void    ImGui_ImplOpenGL3_Shutdown()
 {
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
@@ -423,6 +461,11 @@ void    ImGui_ImplOpenGL3_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Prepares the OpenGL backend for a new ImGui frame.
+ *
+ * Ensures the OpenGL function loader is initialized and creates device objects such as shaders and buffers if they do not already exist.
+ */
 void    ImGui_ImplOpenGL3_NewFrame()
 {
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
@@ -434,6 +477,16 @@ void    ImGui_ImplOpenGL3_NewFrame()
         ImGui_ImplOpenGL3_CreateDeviceObjects();
 }
 
+/**
+ * @brief Configures the OpenGL render state for rendering ImGui draw data.
+ *
+ * Sets up blending, disables culling and depth/stencil tests, enables scissor test, configures polygon mode and primitive restart as needed, sets the viewport and orthographic projection matrix, binds the shader program and vertex array object, and prepares vertex attribute pointers for ImGui rendering.
+ *
+ * @param draw_data ImGui draw data to be rendered.
+ * @param fb_width Width of the framebuffer in pixels.
+ * @param fb_height Height of the framebuffer in pixels.
+ * @param vertex_array_object Vertex array object to bind for rendering.
+ */
 static void ImGui_ImplOpenGL3_SetupRenderState(ImDrawData* draw_data, int fb_width, int fb_height, GLuint vertex_array_object)
 {
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
@@ -510,7 +563,13 @@ static void ImGui_ImplOpenGL3_SetupRenderState(ImDrawData* draw_data, int fb_wid
 
 // OpenGL3 Render function.
 // Note that this implementation is little overcomplicated because we are saving/setting up/restoring every OpenGL state explicitly.
-// This is in order to be able to run within an OpenGL engine that doesn't do so.
+/**
+ * @brief Renders Dear ImGui draw data using the current OpenGL context.
+ *
+ * Processes ImGui's draw lists and issues OpenGL draw calls to render UI elements. Handles dynamic texture updates, sets up and restores all relevant OpenGL state, manages vertex and index buffer uploads, applies scissor rectangles, and supports user callbacks in draw commands. Rendering is skipped if the framebuffer size is zero or negative.
+ *
+ * @param draw_data Pointer to the ImDrawData structure containing all ImGui rendering information for the current frame.
+ */
 void    ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data)
 {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
@@ -698,6 +757,11 @@ void    ImGui_ImplOpenGL3_RenderDrawData(ImDrawData* draw_data)
     (void)bd; // Not all compilation paths use this
 }
 
+/**
+ * @brief Deletes the OpenGL texture associated with the given ImTextureData and marks it as destroyed.
+ *
+ * Clears the texture ID and updates the texture status to indicate it has been destroyed.
+ */
 static void ImGui_ImplOpenGL3_DestroyTexture(ImTextureData* tex)
 {
     GLuint gl_tex_id = (GLuint)(intptr_t)tex->TexID;
@@ -708,6 +772,11 @@ static void ImGui_ImplOpenGL3_DestroyTexture(ImTextureData* tex)
     tex->SetStatus(ImTextureStatus_Destroyed);
 }
 
+/**
+ * @brief Creates, updates, or destroys an OpenGL texture based on the texture's status.
+ *
+ * Handles uploading new texture data to the GPU, updating specific regions of an existing texture, or destroying the texture if it is no longer needed. Supports both full texture uploads and partial updates for dynamic font atlases.
+ */
 void ImGui_ImplOpenGL3_UpdateTexture(ImTextureData* tex)
 {
     if (tex->Status == ImTextureStatus_WantCreate)
@@ -776,7 +845,15 @@ void ImGui_ImplOpenGL3_UpdateTexture(ImTextureData* tex)
         ImGui_ImplOpenGL3_DestroyTexture(tex);
 }
 
-// If you get an error please report on github. You may try different GL context version or GLSL version. See GL<>GLSL version table at the top of this file.
+/**
+ * @brief Checks the compilation status of an OpenGL shader and logs errors or info logs.
+ *
+ * @param handle OpenGL shader handle to check.
+ * @param desc Description of the shader (used in error messages).
+ * @return true if the shader compiled successfully, false otherwise.
+ *
+ * Logs detailed error and info messages to stderr if compilation fails or if the shader info log is non-empty.
+ */
 static bool CheckShader(GLuint handle, const char* desc)
 {
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
@@ -795,7 +872,15 @@ static bool CheckShader(GLuint handle, const char* desc)
     return (GLboolean)status == GL_TRUE;
 }
 
-// If you get an error please report on GitHub. You may try different GL context version or GLSL version.
+/**
+ * @brief Checks the link status of an OpenGL program and logs errors or info logs.
+ *
+ * @param handle OpenGL program handle to check.
+ * @param desc Description of the program, used in error messages.
+ * @return true if the program linked successfully, false otherwise.
+ *
+ * Logs detailed error and info messages to stderr if linking fails or if the program info log contains messages.
+ */
 static bool CheckProgram(GLuint handle, const char* desc)
 {
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
@@ -814,6 +899,13 @@ static bool CheckProgram(GLuint handle, const char* desc)
     return (GLboolean)status == GL_TRUE;
 }
 
+/**
+ * @brief Creates and initializes OpenGL shader programs and buffers for ImGui rendering.
+ *
+ * Compiles and links vertex and fragment shaders appropriate for the detected GLSL version, queries attribute and uniform locations, and generates vertex and element buffer objects. Restores any modified OpenGL state before returning.
+ *
+ * @return true if device objects were successfully created.
+ */
 bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
 {
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
@@ -1009,6 +1101,11 @@ bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
     return true;
 }
 
+/**
+ * @brief Destroys all OpenGL device objects created by the ImGui OpenGL3 backend.
+ *
+ * Deletes vertex and element buffer objects, the shader program, and any textures with a reference count of 1. This function should be called during shutdown or when resetting the OpenGL context to release all associated GPU resources.
+ */
 void    ImGui_ImplOpenGL3_DestroyDeviceObjects()
 {
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();

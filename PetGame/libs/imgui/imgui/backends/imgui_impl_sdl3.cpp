@@ -121,19 +121,32 @@ struct ImGui_ImplSDL3_Data
     ImGui_ImplSDL3_GamepadMode  GamepadMode;
     bool                        WantUpdateGamepadsList;
 
-    ImGui_ImplSDL3_Data()   { memset((void*)this, 0, sizeof(*this)); }
+    /**
+ * @brief Constructs an ImGui_ImplSDL3_Data object and initializes all members to zero.
+ */
+ImGui_ImplSDL3_Data()   { memset((void*)this, 0, sizeof(*this)); }
 };
 
 // Backend data stored in io.BackendPlatformUserData to allow support for multiple Dear ImGui contexts
 // It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
 // FIXME: multi-context support is not well tested and probably dysfunctional in this backend.
-// FIXME: some shared resources (mouse cursor shape, gamepad) are mishandled when using multi-context.
+/**
+ * @brief Retrieves the backend data for the current Dear ImGui context.
+ *
+ * @return Pointer to the ImGui_ImplSDL3_Data structure for the current context, or nullptr if no context is active.
+ */
 static ImGui_ImplSDL3_Data* ImGui_ImplSDL3_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplSDL3_Data*)ImGui::GetIO().BackendPlatformUserData : nullptr;
 }
 
-// Functions
+/**
+ * @brief Retrieves the current text from the system clipboard.
+ *
+ * Frees any previously stored clipboard text buffer, obtains the latest clipboard text using SDL, stores it in the backend state, and returns a pointer to the text.
+ *
+ * @return const char* Pointer to the clipboard text, or nullptr if unavailable.
+ */
 static const char* ImGui_ImplSDL3_GetClipboardText(ImGuiContext*)
 {
     ImGui_ImplSDL3_Data* bd = ImGui_ImplSDL3_GetBackendData();
@@ -143,11 +156,21 @@ static const char* ImGui_ImplSDL3_GetClipboardText(ImGuiContext*)
     return bd->ClipboardTextData;
 }
 
+/**
+ * @brief Sets the system clipboard text to the specified string.
+ *
+ * @param text Null-terminated UTF-8 string to set as clipboard contents.
+ */
 static void ImGui_ImplSDL3_SetClipboardText(ImGuiContext*, const char* text)
 {
     SDL_SetClipboardText(text);
 }
 
+/**
+ * @brief Manages IME (Input Method Editor) state and text input area for a given ImGui viewport.
+ *
+ * Starts or stops SDL text input based on IME visibility or text input requests, and sets the text input rectangle for IME composition. Associates the IME window with the specified viewport as needed.
+ */
 static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext*, ImGuiViewport* viewport, ImGuiPlatformImeData* data)
 {
     ImGui_ImplSDL3_Data* bd = ImGui_ImplSDL3_GetBackendData();
@@ -174,6 +197,15 @@ static void ImGui_ImplSDL3_PlatformSetImeData(ImGuiContext*, ImGuiViewport* view
 
 // Not static to allow third-party code to use that if they want to (but undocumented)
 ImGuiKey ImGui_ImplSDL3_KeyEventToImGuiKey(SDL_Keycode keycode, SDL_Scancode scancode);
+/**
+ * @brief Maps SDL keycode and scancode to the corresponding ImGuiKey.
+ *
+ * Converts SDL3 key events to ImGuiKey values, supporting keypad, function, navigation, and OEM keys. Falls back to scancode mapping for keys not directly represented by SDL keycodes.
+ *
+ * @param keycode SDL keycode from the key event.
+ * @param scancode SDL scancode from the key event.
+ * @return ImGuiKey value corresponding to the SDL key event, or ImGuiKey_None if unmapped.
+ */
 ImGuiKey ImGui_ImplSDL3_KeyEventToImGuiKey(SDL_Keycode keycode, SDL_Scancode scancode)
 {
     // Keypad doesn't have individual key values in SDL3
@@ -325,6 +357,13 @@ ImGuiKey ImGui_ImplSDL3_KeyEventToImGuiKey(SDL_Keycode keycode, SDL_Scancode sca
     return ImGuiKey_None;
 }
 
+/**
+ * @brief Updates ImGui modifier key states based on SDL key modifier flags.
+ *
+ * Sets the current state of Ctrl, Shift, Alt, and Super modifiers in ImGui according to the provided SDL_Keymod bitmask.
+ *
+ * @param sdl_key_mods Bitmask of SDL key modifier flags.
+ */
 static void ImGui_ImplSDL3_UpdateKeyModifiers(SDL_Keymod sdl_key_mods)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -335,6 +374,12 @@ static void ImGui_ImplSDL3_UpdateKeyModifiers(SDL_Keymod sdl_key_mods)
 }
 
 
+/**
+ * @brief Returns the ImGui main viewport if the given SDL window ID matches the backend window.
+ *
+ * @param window_id SDL window ID to check.
+ * @return ImGuiViewport* Pointer to the main ImGui viewport if the window ID matches, otherwise nullptr.
+ */
 static ImGuiViewport* ImGui_ImplSDL3_GetViewportForWindowID(SDL_WindowID window_id)
 {
     ImGui_ImplSDL3_Data* bd = ImGui_ImplSDL3_GetBackendData();
@@ -345,7 +390,14 @@ static ImGuiViewport* ImGui_ImplSDL3_GetViewportForWindowID(SDL_WindowID window_
 // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
 // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
 // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
-// If you have multiple SDL events and some of them are not meant to be used by dear imgui, you may need to filter events based on their windowID field.
+/**
+ * @brief Processes an SDL3 event and updates ImGui input state accordingly.
+ *
+ * Handles relevant SDL3 events such as mouse, keyboard, text input, window focus, and gamepad connection changes, translating them into ImGui input events. Returns true if the event was processed by ImGui, false otherwise.
+ *
+ * @param event Pointer to the SDL_Event to process.
+ * @return true if the event was handled by ImGui, false otherwise.
+ */
 bool ImGui_ImplSDL3_ProcessEvent(const SDL_Event* event)
 {
     ImGui_ImplSDL3_Data* bd = ImGui_ImplSDL3_GetBackendData();
@@ -449,6 +501,11 @@ bool ImGui_ImplSDL3_ProcessEvent(const SDL_Event* event)
     return false;
 }
 
+/**
+ * @brief Sets platform-specific handles for an ImGui viewport using the given SDL window.
+ *
+ * Assigns the SDL window ID to the viewport's PlatformHandle and, on supported platforms, sets PlatformHandleRaw to the native window handle (e.g., HWND on Windows, Cocoa window pointer on macOS).
+ */
 static void ImGui_ImplSDL3_SetupPlatformHandles(ImGuiViewport* viewport, SDL_Window* window)
 {
     viewport->PlatformHandle = (void*)(intptr_t)SDL_GetWindowID(window);
@@ -460,6 +517,16 @@ static void ImGui_ImplSDL3_SetupPlatformHandles(ImGuiViewport* viewport, SDL_Win
 #endif
 }
 
+/**
+ * @brief Initializes the Dear ImGui SDL3 platform backend.
+ *
+ * Sets up ImGui to use SDL3 for windowing, input, clipboard, IME, mouse cursor, and gamepad support. Configures backend capabilities, platform handlers, and loads system mouse cursors. Associates the backend with the provided SDL_Window and optional SDL_Renderer.
+ *
+ * @param window SDL_Window to associate with ImGui.
+ * @param renderer Optional SDL_Renderer for renderer-specific integrations.
+ * @param sdl_gl_context Unused in this function; provided for compatibility with other backends.
+ * @return true on successful initialization.
+ */
 static bool ImGui_ImplSDL3_Init(SDL_Window* window, SDL_Renderer* renderer, void* sdl_gl_context)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -539,17 +606,38 @@ static bool ImGui_ImplSDL3_Init(SDL_Window* window, SDL_Renderer* renderer, void
     return true;
 }
 
+/**
+ * @brief Initializes the Dear ImGui SDL3 backend for use with OpenGL rendering.
+ *
+ * @param window SDL_Window to associate with the ImGui context.
+ * @param sdl_gl_context OpenGL context handle for the SDL window.
+ * @return true if initialization was successful, false otherwise.
+ */
 bool ImGui_ImplSDL3_InitForOpenGL(SDL_Window* window, void* sdl_gl_context)
 {
     IM_UNUSED(sdl_gl_context); // Viewport branch will need this.
     return ImGui_ImplSDL3_Init(window, nullptr, sdl_gl_context);
 }
 
+/**
+ * @brief Initializes the Dear ImGui SDL3 backend for use with a Vulkan renderer.
+ *
+ * @param window Pointer to the SDL_Window to be used with Vulkan rendering.
+ * @return true if initialization succeeds, false otherwise.
+ */
 bool ImGui_ImplSDL3_InitForVulkan(SDL_Window* window)
 {
     return ImGui_ImplSDL3_Init(window, nullptr, nullptr);
 }
 
+/**
+ * @brief Initializes the Dear ImGui SDL3 backend for use with Direct3D rendering.
+ *
+ * @param window Pointer to the SDL_Window to be used with ImGui.
+ * @return true if initialization was successful, false otherwise.
+ *
+ * @note This function is only supported on Windows platforms.
+ */
 bool ImGui_ImplSDL3_InitForD3D(SDL_Window* window)
 {
 #if !defined(_WIN32)
@@ -558,21 +646,51 @@ bool ImGui_ImplSDL3_InitForD3D(SDL_Window* window)
     return ImGui_ImplSDL3_Init(window, nullptr, nullptr);
 }
 
+/**
+ * @brief Initializes the Dear ImGui SDL3 backend for use with Metal rendering.
+ *
+ * @param window Pointer to the SDL_Window to be used with Metal.
+ * @return true if initialization was successful, false otherwise.
+ */
 bool ImGui_ImplSDL3_InitForMetal(SDL_Window* window)
 {
     return ImGui_ImplSDL3_Init(window, nullptr, nullptr);
 }
 
+/**
+ * @brief Initializes the Dear ImGui SDL3 backend for use with an SDL_Renderer.
+ *
+ * Sets up platform integration for Dear ImGui using the provided SDL_Window and SDL_Renderer.
+ *
+ * @param window Pointer to the SDL_Window to be used by ImGui.
+ * @param renderer Pointer to the SDL_Renderer to be used by ImGui.
+ * @return true if initialization was successful, false otherwise.
+ */
 bool ImGui_ImplSDL3_InitForSDLRenderer(SDL_Window* window, SDL_Renderer* renderer)
 {
     return ImGui_ImplSDL3_Init(window, renderer, nullptr);
 }
 
+/**
+ * @brief Initializes the Dear ImGui SDL3 backend for use with SDL GPU rendering.
+ *
+ * @param window Pointer to the SDL_Window to be used by ImGui.
+ * @return true if initialization was successful, false otherwise.
+ */
 bool ImGui_ImplSDL3_InitForSDLGPU(SDL_Window* window)
 {
     return ImGui_ImplSDL3_Init(window, nullptr, nullptr);
 }
 
+/**
+ * @brief Initializes the Dear ImGui SDL3 backend for a custom or unspecified rendering backend.
+ *
+ * @param window Pointer to the SDL_Window to be used by ImGui.
+ * @return true if initialization succeeds, false otherwise.
+ *
+ * @details
+ * This function sets up the ImGui SDL3 platform backend for use with a rendering backend not explicitly supported by other initialization helpers. Use this when integrating with a custom graphics API or when none of the provided backend-specific init functions are appropriate.
+ */
 bool ImGui_ImplSDL3_InitForOther(SDL_Window* window)
 {
     return ImGui_ImplSDL3_Init(window, nullptr, nullptr);
@@ -580,6 +698,11 @@ bool ImGui_ImplSDL3_InitForOther(SDL_Window* window)
 
 static void ImGui_ImplSDL3_CloseGamepads();
 
+/**
+ * @brief Shuts down the Dear ImGui SDL3 platform backend and releases associated resources.
+ *
+ * Frees clipboard text, destroys mouse cursors, closes gamepad handles, clears backend flags, and deletes backend state.
+ */
 void ImGui_ImplSDL3_Shutdown()
 {
     ImGui_ImplSDL3_Data* bd = ImGui_ImplSDL3_GetBackendData();
@@ -598,6 +721,11 @@ void ImGui_ImplSDL3_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Updates ImGui mouse input state from SDL, including capture and global position.
+ *
+ * Handles mouse capture when dragging, updates mouse position based on SDL focus and global mouse state, and optionally sets the OS mouse position if requested by ImGui navigation settings.
+ */
 static void ImGui_ImplSDL3_UpdateMouseData()
 {
     ImGui_ImplSDL3_Data* bd = ImGui_ImplSDL3_GetBackendData();
@@ -642,6 +770,11 @@ static void ImGui_ImplSDL3_UpdateMouseData()
     }
 }
 
+/**
+ * @brief Updates the OS mouse cursor to match the current ImGui cursor state.
+ *
+ * Hides the OS cursor if ImGui is drawing its own cursor or requests no cursor. Otherwise, sets and shows the OS cursor to match the ImGui cursor type, unless cursor changes are disabled by configuration.
+ */
 static void ImGui_ImplSDL3_UpdateMouseCursor()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -668,6 +801,11 @@ static void ImGui_ImplSDL3_UpdateMouseCursor()
     }
 }
 
+/**
+ * @brief Closes all opened SDL_Gamepad handles and clears the gamepad list.
+ *
+ * In automatic gamepad modes, this function closes each SDL_Gamepad instance managed by the backend. In manual mode, it only clears the internal gamepad list without closing handles.
+ */
 static void ImGui_ImplSDL3_CloseGamepads()
 {
     ImGui_ImplSDL3_Data* bd = ImGui_ImplSDL3_GetBackendData();
@@ -677,6 +815,15 @@ static void ImGui_ImplSDL3_CloseGamepads()
     bd->Gamepads.resize(0);
 }
 
+/**
+ * @brief Sets the gamepad input mode for the backend.
+ *
+ * In manual mode, uses the provided array of SDL_Gamepad pointers as the active gamepads. In automatic modes, triggers an update to detect connected gamepads.
+ *
+ * @param mode The desired gamepad mode (manual or automatic).
+ * @param manual_gamepads_array Array of SDL_Gamepad pointers to use in manual mode.
+ * @param manual_gamepads_count Number of gamepads in the manual array.
+ */
 void ImGui_ImplSDL3_SetGamepadMode(ImGui_ImplSDL3_GamepadMode mode, SDL_Gamepad** manual_gamepads_array, int manual_gamepads_count)
 {
     ImGui_ImplSDL3_Data* bd = ImGui_ImplSDL3_GetBackendData();
@@ -695,6 +842,16 @@ void ImGui_ImplSDL3_SetGamepadMode(ImGui_ImplSDL3_GamepadMode mode, SDL_Gamepad*
     bd->GamepadMode = mode;
 }
 
+/**
+ * @brief Updates the ImGui key event state for a specific gamepad button across all connected gamepads.
+ *
+ * Merges the state of the specified SDL gamepad button from all connected gamepads and updates the corresponding ImGui key event.
+ *
+ * @param bd Backend data containing the list of connected gamepads.
+ * @param io ImGui IO object to update key events.
+ * @param key ImGuiKey corresponding to the gamepad button.
+ * @param button_no SDL gamepad button to query.
+ */
 static void ImGui_ImplSDL3_UpdateGamepadButton(ImGui_ImplSDL3_Data* bd, ImGuiIO& io, ImGuiKey key, SDL_GamepadButton button_no)
 {
     bool merged_value = false;
@@ -703,7 +860,23 @@ static void ImGui_ImplSDL3_UpdateGamepadButton(ImGui_ImplSDL3_Data* bd, ImGuiIO&
     io.AddKeyEvent(key, merged_value);
 }
 
+/**
+ * @brief Clamps a floating-point value to the range [0.0f, 1.0f].
+ *
+ * @param v The value to clamp.
+ * @return float The clamped value within [0.0f, 1.0f].
+ */
 static inline float Saturate(float v) { return v < 0.0f ? 0.0f : v  > 1.0f ? 1.0f : v; }
+/**
+ * @brief Updates the ImGui analog key event for a specific gamepad axis.
+ *
+ * Merges the normalized analog values from all connected gamepads for the given axis, applies a dead zone, and updates the corresponding ImGui analog key event.
+ *
+ * @param key ImGuiKey corresponding to the analog input.
+ * @param axis_no SDL gamepad axis to read.
+ * @param v0 Minimum raw axis value for normalization (dead zone start).
+ * @param v1 Maximum raw axis value for normalization (full activation).
+ */
 static void ImGui_ImplSDL3_UpdateGamepadAnalog(ImGui_ImplSDL3_Data* bd, ImGuiIO& io, ImGuiKey key, SDL_GamepadAxis axis_no, float v0, float v1)
 {
     float merged_value = 0.0f;
@@ -716,6 +889,11 @@ static void ImGui_ImplSDL3_UpdateGamepadAnalog(ImGui_ImplSDL3_Data* bd, ImGuiIO&
     io.AddKeyAnalogEvent(key, merged_value > 0.1f, merged_value);
 }
 
+/**
+ * @brief Updates the list of connected gamepads and their input states for ImGui.
+ *
+ * Scans for connected gamepads if needed, opens handles, and updates ImGui's backend flags and input state for all supported gamepad buttons and analog axes. Handles both automatic and manual gamepad management modes.
+ */
 static void ImGui_ImplSDL3_UpdateGamepads()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -771,6 +949,15 @@ static void ImGui_ImplSDL3_UpdateGamepads()
     ImGui_ImplSDL3_UpdateGamepadAnalog(bd, io, ImGuiKey_GamepadRStickDown,  SDL_GAMEPAD_AXIS_RIGHTY, +thumb_dead_zone, +32767);
 }
 
+/**
+ * @brief Retrieves the window size and framebuffer scale for an SDL window.
+ *
+ * Calculates the logical window size and the framebuffer scale ratio (pixel size to window size) for the given SDL window. If the window is minimized, the size is set to zero.
+ *
+ * @param window SDL window to query.
+ * @param out_size Optional output for the logical window size.
+ * @param out_framebuffer_scale Optional output for the framebuffer scale (pixel size divided by window size).
+ */
 static void ImGui_ImplSDL3_GetWindowSizeAndFramebufferScale(SDL_Window* window, ImVec2* out_size, ImVec2* out_framebuffer_scale)
 {
     int w, h;
@@ -785,6 +972,11 @@ static void ImGui_ImplSDL3_GetWindowSizeAndFramebufferScale(SDL_Window* window, 
         *out_framebuffer_scale = (w > 0 && h > 0) ? ImVec2((float)display_w / w, (float)display_h / h) : ImVec2(1.0f, 1.0f);
 }
 
+/**
+ * @brief Prepares the Dear ImGui SDL3 backend for a new frame.
+ *
+ * Updates display size, framebuffer scale, and delta time based on the current SDL window state. Handles pending mouse leave events, updates mouse data and cursor shape, and processes gamepad input for the current frame.
+ */
 void ImGui_ImplSDL3_NewFrame()
 {
     ImGui_ImplSDL3_Data* bd = ImGui_ImplSDL3_GetBackendData();

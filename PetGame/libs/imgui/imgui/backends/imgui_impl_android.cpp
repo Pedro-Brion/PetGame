@@ -43,6 +43,14 @@ static double                                   g_Time = 0.0;
 static ANativeWindow*                           g_Window;
 static char                                     g_LogTag[] = "ImGuiExample";
 
+/**
+ * @brief Maps an Android key code to the corresponding ImGuiKey.
+ *
+ * Converts an Android AKEYCODE_* value to the equivalent ImGuiKey enum value. Returns ImGuiKey_None if the key code is not mapped.
+ *
+ * @param key_code Android key code (AKEYCODE_*).
+ * @return ImGuiKey Corresponding ImGuiKey, or ImGuiKey_None if unmapped.
+ */
 static ImGuiKey ImGui_ImplAndroid_KeyCodeToImGuiKey(int32_t key_code)
 {
     switch (key_code)
@@ -156,6 +164,14 @@ static ImGuiKey ImGui_ImplAndroid_KeyCodeToImGuiKey(int32_t key_code)
     }
 }
 
+/**
+ * @brief Processes an Android input event and updates ImGui input state.
+ *
+ * Converts Android key and motion events into corresponding ImGui input events, including keyboard keys, modifier keys, mouse/touch/pen input, mouse button states, pointer movement, and scroll actions. Returns 1 if the event was handled, 0 otherwise.
+ *
+ * @param input_event Pointer to the Android input event to process.
+ * @return int32_t 1 if the event was handled and forwarded to ImGui, 0 otherwise.
+ */
 int32_t ImGui_ImplAndroid_HandleInputEvent(const AInputEvent* input_event)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -261,6 +277,13 @@ int32_t ImGui_ImplAndroid_HandleInputEvent(const AInputEvent* input_event)
     return 0;
 }
 
+/**
+ * @brief Initializes the Dear ImGui backend for Android with the given native window.
+ *
+ * Sets up the backend platform name and stores the native window reference for use in subsequent ImGui operations.
+ *
+ * @return true on successful initialization.
+ */
 bool ImGui_ImplAndroid_Init(ANativeWindow* window)
 {
     IMGUI_CHECKVERSION();
@@ -275,12 +298,22 @@ bool ImGui_ImplAndroid_Init(ANativeWindow* window)
     return true;
 }
 
+/**
+ * @brief Shuts down the ImGui Android backend and clears platform-specific state.
+ *
+ * Resets the backend platform name in ImGui IO to indicate the backend is no longer active.
+ */
 void ImGui_ImplAndroid_Shutdown()
 {
     ImGuiIO& io = ImGui::GetIO();
     io.BackendPlatformName = nullptr;
 }
 
+/**
+ * @brief Prepares ImGui for a new frame on Android.
+ *
+ * Updates display size, framebuffer scale, and delta time in ImGui IO based on the current native window and system clock.
+ */
 void ImGui_ImplAndroid_NewFrame()
 {
     ImGuiIO& io = ImGui::GetIO();

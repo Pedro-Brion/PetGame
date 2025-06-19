@@ -56,7 +56,12 @@ struct ImGui_ImplDX9_Data
     int                         IndexBufferSize;
     bool                        HasRgbaSupport;
 
-    ImGui_ImplDX9_Data()        { memset((void*)this, 0, sizeof(*this)); VertexBufferSize = 5000; IndexBufferSize = 10000; }
+    /**
+ * @brief Constructs and initializes the backend data structure for the DirectX9 ImGui renderer.
+ *
+ * Sets all members to zero and assigns default sizes for the vertex and index buffers.
+ */
+ImGui_ImplDX9_Data()        { memset((void*)this, 0, sizeof(*this)); VertexBufferSize = 5000; IndexBufferSize = 10000; }
 };
 
 struct CUSTOMVERTEX
@@ -74,13 +79,23 @@ struct CUSTOMVERTEX
 #endif
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
-// It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
+/**
+ * @brief Retrieves the backend data for the current Dear ImGui context.
+ *
+ * @return Pointer to the ImGui_ImplDX9_Data structure associated with the current ImGui context, or nullptr if no context is active.
+ */
 static ImGui_ImplDX9_Data* ImGui_ImplDX9_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplDX9_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
 }
 
-// Functions
+/**
+ * @brief Configures the Direct3D9 device render state for ImGui rendering.
+ *
+ * Sets up the viewport, disables shaders, enables alpha blending, disables depth and stencil testing, configures texture and sampler states, and establishes an orthographic projection matrix to match the ImGui draw data display area.
+ *
+ * @param draw_data ImGui draw data containing display position and size for viewport and projection setup.
+ */
 static void ImGui_ImplDX9_SetupRenderState(ImDrawData* draw_data)
 {
     ImGui_ImplDX9_Data* bd = ImGui_ImplDX9_GetBackendData();
@@ -154,7 +169,13 @@ static void ImGui_ImplDX9_SetupRenderState(ImDrawData* draw_data)
     }
 }
 
-// Render function.
+/**
+ * @brief Renders ImGui draw data using the DirectX9 device.
+ *
+ * Uploads ImGui's vertex and index data to DirectX9 buffers, sets up render state, and issues draw calls for each ImDrawCmd. Handles dynamic buffer allocation, texture updates, user callbacks, and scissor/clipping rectangles. Preserves and restores the device state and transforms to avoid interfering with the application's DirectX9 state.
+ *
+ * @param draw_data Pointer to the ImDrawData to render.
+ */
 void ImGui_ImplDX9_RenderDrawData(ImDrawData* draw_data)
 {
     // Avoid rendering when minimized
@@ -301,6 +322,15 @@ void ImGui_ImplDX9_RenderDrawData(ImDrawData* draw_data)
     state_block->Release();
 }
 
+/**
+ * @brief Checks if the Direct3D9 device supports a specific texture format with required usage flags.
+ *
+ * Determines whether the given device can create a texture of the specified format with dynamic usage, filtering, and post-pixel shader blending capabilities.
+ *
+ * @param pDevice Pointer to the Direct3D9 device to query.
+ * @param format The texture format to check for support.
+ * @return true if the format is supported with the required usage flags; false otherwise.
+ */
 static bool ImGui_ImplDX9_CheckFormatSupport(LPDIRECT3DDEVICE9 pDevice, D3DFORMAT format)
 {
     LPDIRECT3D9 pd3d = nullptr;
@@ -319,6 +349,14 @@ static bool ImGui_ImplDX9_CheckFormatSupport(LPDIRECT3DDEVICE9 pDevice, D3DFORMA
     return support;
 }
 
+/**
+ * @brief Initializes the Dear ImGui DirectX9 renderer backend with the specified Direct3D device.
+ *
+ * Sets up backend capabilities, stores the device pointer, checks for RGBA texture format support, and configures platform IO texture size hints. Must be called before using other backend functions.
+ *
+ * @param device Pointer to the Direct3D9 device to use for rendering.
+ * @return true on successful initialization.
+ */
 bool ImGui_ImplDX9_Init(IDirect3DDevice9* device)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -342,6 +380,11 @@ bool ImGui_ImplDX9_Init(IDirect3DDevice9* device)
     return true;
 }
 
+/**
+ * @brief Shuts down the DirectX9 ImGui renderer backend and releases all associated resources.
+ *
+ * Releases Direct3D device references, invalidates device objects, clears backend flags and user data, and deletes backend data structures.
+ */
 void ImGui_ImplDX9_Shutdown()
 {
     ImGui_ImplDX9_Data* bd = ImGui_ImplDX9_GetBackendData();
@@ -356,7 +399,19 @@ void ImGui_ImplDX9_Shutdown()
     IM_DELETE(bd);
 }
 
-// Convert RGBA32 to BGRA32 (because RGBA32 is not well supported by DX9 devices)
+/**
+ * @brief Copies a rectangular region of pixel data from source to destination, converting RGBA to BGRA format if required.
+ *
+ * If the DirectX9 device does not support RGBA textures and color conversion is needed, each pixel is converted from RGBA32 to BGRA32. Otherwise, the pixel data is copied directly.
+ *
+ * @param tex_use_colors Indicates whether the texture uses color data and may require conversion.
+ * @param src Pointer to the source pixel data.
+ * @param src_pitch Number of bytes per row in the source data.
+ * @param dst Pointer to the destination pixel buffer.
+ * @param dst_pitch Number of bytes per row in the destination buffer.
+ * @param w Width of the region to copy, in pixels.
+ * @param h Height of the region to copy, in pixels.
+ */
 static void ImGui_ImplDX9_CopyTextureRegion(bool tex_use_colors, const ImU32* src, int src_pitch, ImU32* dst, int dst_pitch, int w, int h)
 {
 #ifndef IMGUI_USE_BGRA_PACKED_COLOR
@@ -378,6 +433,16 @@ static void ImGui_ImplDX9_CopyTextureRegion(bool tex_use_colors, const ImU32* sr
     }
 }
 
+/**
+ * @brief Creates, updates, or destroys a Direct3D9 texture based on the status of the given ImTextureData.
+ *
+ * Depending on the texture's status, this function will:
+ * - Create a new Direct3D9 texture and upload pixel data if the status is `WantCreate`.
+ * - Update specified regions of an existing texture if the status is `WantUpdates`.
+ * - Release and destroy the Direct3D9 texture if the status is `WantDestroy`.
+ *
+ * The function handles color format conversion as needed and updates the texture's identifiers and status accordingly.
+ */
 void ImGui_ImplDX9_UpdateTexture(ImTextureData* tex)
 {
     ImGui_ImplDX9_Data* bd = ImGui_ImplDX9_GetBackendData();
@@ -435,6 +500,11 @@ void ImGui_ImplDX9_UpdateTexture(ImTextureData* tex)
     }
 }
 
+/**
+ * @brief Checks if the DirectX9 device and backend data are available for rendering.
+ *
+ * @return true if the backend data and Direct3D device are valid; false otherwise.
+ */
 bool ImGui_ImplDX9_CreateDeviceObjects()
 {
     ImGui_ImplDX9_Data* bd = ImGui_ImplDX9_GetBackendData();
@@ -443,6 +513,11 @@ bool ImGui_ImplDX9_CreateDeviceObjects()
     return true;
 }
 
+/**
+ * @brief Releases DirectX9 device objects and destroys managed textures.
+ *
+ * Releases vertex and index buffers, and destroys all textures with a reference count of 1 by marking them for destruction and updating them. Intended to be called when the DirectX9 device is lost or needs to be reset.
+ */
 void ImGui_ImplDX9_InvalidateDeviceObjects()
 {
     ImGui_ImplDX9_Data* bd = ImGui_ImplDX9_GetBackendData();
@@ -460,6 +535,11 @@ void ImGui_ImplDX9_InvalidateDeviceObjects()
     if (bd->pIB) { bd->pIB->Release(); bd->pIB = nullptr; }
 }
 
+/**
+ * @brief Prepares the DirectX9 backend for a new ImGui frame.
+ *
+ * Should be called at the start of each frame before rendering ImGui content. Asserts that the backend is properly initialized.
+ */
 void ImGui_ImplDX9_NewFrame()
 {
     ImGui_ImplDX9_Data* bd = ImGui_ImplDX9_GetBackendData();

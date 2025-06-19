@@ -74,7 +74,12 @@ struct ImGui_ImplDX10_Data
     int                         VertexBufferSize;
     int                         IndexBufferSize;
 
-    ImGui_ImplDX10_Data()       { memset((void*)this, 0, sizeof(*this)); VertexBufferSize = 5000; IndexBufferSize = 10000; }
+    /**
+ * @brief Constructs and initializes backend data for the ImGui DirectX 10 renderer.
+ *
+ * Sets all members to zero and assigns default sizes for the vertex and index buffers.
+ */
+ImGui_ImplDX10_Data()       { memset((void*)this, 0, sizeof(*this)); VertexBufferSize = 5000; IndexBufferSize = 10000; }
 };
 
 struct VERTEX_CONSTANT_BUFFER_DX10
@@ -83,13 +88,24 @@ struct VERTEX_CONSTANT_BUFFER_DX10
 };
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
-// It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
+/**
+ * @brief Retrieves the DirectX 10 backend data for the current ImGui context.
+ *
+ * @return Pointer to the backend data structure, or nullptr if no context is active.
+ */
 static ImGui_ImplDX10_Data* ImGui_ImplDX10_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplDX10_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
 }
 
-// Functions
+/**
+ * @brief Configures the DirectX 10 device render state for ImGui rendering.
+ *
+ * Sets up the viewport, orthographic projection matrix, shaders, input layout, vertex and index buffers, and all required pipeline states for rendering ImGui draw data using DirectX 10.
+ *
+ * @param draw_data ImGui draw data to be rendered.
+ * @param device DirectX 10 device to configure.
+ */
 static void ImGui_ImplDX10_SetupRenderState(ImDrawData* draw_data, ID3D10Device* device)
 {
     ImGui_ImplDX10_Data* bd = ImGui_ImplDX10_GetBackendData();
@@ -144,7 +160,13 @@ static void ImGui_ImplDX10_SetupRenderState(ImDrawData* draw_data, ID3D10Device*
     device->RSSetState(bd->pRasterizerState);
 }
 
-// Render function
+/**
+ * @brief Renders Dear ImGui draw data using DirectX 10.
+ *
+ * Uploads ImGui vertex and index data to dynamic DirectX 10 buffers, configures the device render state, and executes draw commands for all ImGui command lists. Handles dynamic buffer resizing, texture updates, user callbacks, and restores the previous DirectX 10 device state after rendering. Rendering is skipped if the display size is zero or negative.
+ *
+ * @param draw_data Pointer to the ImDrawData structure containing all ImGui draw lists and rendering information.
+ */
 void ImGui_ImplDX10_RenderDrawData(ImDrawData* draw_data)
 {
     // Avoid rendering when minimized
@@ -318,6 +340,13 @@ void ImGui_ImplDX10_RenderDrawData(ImDrawData* draw_data)
     device->IASetInputLayout(old.InputLayout); if (old.InputLayout) old.InputLayout->Release();
 }
 
+/**
+ * @brief Releases and destroys the DirectX 10 resources associated with an ImGui texture.
+ *
+ * Frees the DirectX 10 texture and shader resource view linked to the given ImTextureData,
+ * deletes the backend texture structure, clears the texture identifier, marks the texture as destroyed,
+ * and nullifies the backend user data pointer.
+ */
 static void ImGui_ImplDX10_DestroyTexture(ImTextureData* tex)
 {
     ImGui_ImplDX10_Texture* backend_tex = (ImGui_ImplDX10_Texture*)tex->BackendUserData;
@@ -334,6 +363,11 @@ static void ImGui_ImplDX10_DestroyTexture(ImTextureData* tex)
     tex->BackendUserData = nullptr;
 }
 
+/**
+ * @brief Creates, updates, or destroys a DirectX 10 texture based on the texture's status.
+ *
+ * Handles creation of a new DirectX 10 2D texture and shader resource view when requested, updates specified regions of an existing texture, or destroys the texture if marked for deletion. Integrates with ImGui's texture management system.
+ */
 void ImGui_ImplDX10_UpdateTexture(ImTextureData* tex)
 {
     ImGui_ImplDX10_Data* bd = ImGui_ImplDX10_GetBackendData();
@@ -398,6 +432,13 @@ void ImGui_ImplDX10_UpdateTexture(ImTextureData* tex)
         ImGui_ImplDX10_DestroyTexture(tex);
 }
 
+/**
+ * @brief Creates all required DirectX 10 device objects for ImGui rendering.
+ *
+ * Compiles and creates the vertex and pixel shaders, input layout, constant buffer, blend state, rasterizer state, depth-stencil state, and texture sampler needed for the ImGui DirectX 10 renderer backend. Invalidates and releases any existing device objects before creation.
+ *
+ * @return true if all device objects were created successfully, false if any step failed.
+ */
 bool    ImGui_ImplDX10_CreateDeviceObjects()
 {
     ImGui_ImplDX10_Data* bd = ImGui_ImplDX10_GetBackendData();
@@ -565,6 +606,11 @@ bool    ImGui_ImplDX10_CreateDeviceObjects()
     return true;
 }
 
+/**
+ * @brief Releases all DirectX 10 device objects and destroys textures with a single reference.
+ *
+ * Frees all allocated DirectX 10 resources used by the ImGui renderer backend, including textures, buffers, shaders, input layouts, and state objects. Textures are only destroyed if their reference count is one.
+ */
 void    ImGui_ImplDX10_InvalidateDeviceObjects()
 {
     ImGui_ImplDX10_Data* bd = ImGui_ImplDX10_GetBackendData();
@@ -587,6 +633,14 @@ void    ImGui_ImplDX10_InvalidateDeviceObjects()
     if (bd->pVertexShader)          { bd->pVertexShader->Release(); bd->pVertexShader = nullptr; }
 }
 
+/**
+ * @brief Initializes the Dear ImGui DirectX 10 renderer backend with the given device.
+ *
+ * Sets up backend data structures, configures backend flags for vertex offset and texture support, and queries the DXGI factory from the provided DirectX 10 device. This function must be called before using other backend functions.
+ *
+ * @param device Pointer to the DirectX 10 device to be used for rendering.
+ * @return true if initialization succeeds.
+ */
 bool    ImGui_ImplDX10_Init(ID3D10Device* device)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -621,6 +675,11 @@ bool    ImGui_ImplDX10_Init(ID3D10Device* device)
     return true;
 }
 
+/**
+ * @brief Shuts down the Dear ImGui DirectX 10 renderer backend and releases all associated resources.
+ *
+ * Releases DirectX 10 device and factory references, invalidates device objects, clears backend flags and user data, and deletes backend data structures.
+ */
 void ImGui_ImplDX10_Shutdown()
 {
     ImGui_ImplDX10_Data* bd = ImGui_ImplDX10_GetBackendData();
@@ -636,6 +695,11 @@ void ImGui_ImplDX10_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Prepares the DirectX 10 backend for a new ImGui frame.
+ *
+ * Ensures that all required device objects are created before rendering begins.
+ */
 void ImGui_ImplDX10_NewFrame()
 {
     ImGui_ImplDX10_Data* bd = ImGui_ImplDX10_GetBackendData();

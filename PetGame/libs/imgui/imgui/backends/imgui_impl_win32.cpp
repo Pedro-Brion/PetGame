@@ -125,23 +125,42 @@ struct ImGui_ImplWin32_Data
     PFN_XInputGetState          XInputGetState;
 #endif
 
-    ImGui_ImplWin32_Data()      { memset((void*)this, 0, sizeof(*this)); }
+    /**
+ * @brief Constructs and zero-initializes all fields of the backend data structure.
+ *
+ * Ensures all members of ImGui_ImplWin32_Data are set to zero on creation.
+ */
+ImGui_ImplWin32_Data()      { memset((void*)this, 0, sizeof(*this)); }
 };
 
 // Backend data stored in io.BackendPlatformUserData to allow support for multiple Dear ImGui contexts
 // It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
 // FIXME: multi-context support is not well tested and probably dysfunctional in this backend.
-// FIXME: some shared resources (mouse cursor shape, gamepad) are mishandled when using multi-context.
+/**
+ * @brief Retrieves the Win32 backend data for the current ImGui context.
+ *
+ * @return Pointer to the backend data structure, or nullptr if no context is active.
+ */
 static ImGui_ImplWin32_Data* ImGui_ImplWin32_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplWin32_Data*)ImGui::GetIO().BackendPlatformUserData : nullptr;
 }
+/**
+ * @brief Retrieves the Win32 backend data associated with the given ImGuiIO instance.
+ *
+ * @param io Reference to the ImGuiIO structure whose backend data is requested.
+ * @return Pointer to the ImGui_ImplWin32_Data structure, or nullptr if not initialized.
+ */
 static ImGui_ImplWin32_Data* ImGui_ImplWin32_GetBackendData(ImGuiIO& io)
 {
     return (ImGui_ImplWin32_Data*)io.BackendPlatformUserData;
 }
 
-// Functions
+/**
+ * @brief Updates the backend keyboard code page for the current input language.
+ *
+ * Retrieves and stores the active keyboard code page in the backend data, enabling correct handling of non-Unicode input on Windows. Falls back to the default ANSI code page if retrieval fails.
+ */
 static void ImGui_ImplWin32_UpdateKeyboardCodePage(ImGuiIO& io)
 {
     // Retrieve keyboard code page, required for handling of non-Unicode Windows.
@@ -152,6 +171,15 @@ static void ImGui_ImplWin32_UpdateKeyboardCodePage(ImGuiIO& io)
         bd->KeyboardCodePage = CP_ACP; // Fallback to default ANSI code page when fails.
 }
 
+/**
+ * @brief Initializes the Dear ImGui Win32 platform backend with the specified window handle.
+ *
+ * Sets up backend state, input handling, and platform integration for the given window. Queries high-resolution timers, configures backend flags, associates the backend data with the ImGui context, and sets up the main viewport's platform handle. Dynamically loads XInput libraries for gamepad support if enabled.
+ *
+ * @param hwnd Window handle to associate with the backend.
+ * @param platform_has_own_dc Indicates if the platform provides its own device context (used in docking branch).
+ * @return true if initialization succeeds, false if required system resources (timers) are unavailable.
+ */
 static bool ImGui_ImplWin32_InitEx(void* hwnd, bool platform_has_own_dc)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -206,17 +234,38 @@ static bool ImGui_ImplWin32_InitEx(void* hwnd, bool platform_has_own_dc)
     return true;
 }
 
+/**
+ * @brief Initializes the Dear ImGui Win32 backend with the specified window handle.
+ *
+ * Sets up platform integration for input handling and window management using the provided Win32 window handle. This function should be called before using other backend functions.
+ *
+ * @param hwnd Handle to the Win32 window to be used by ImGui.
+ * @return true if initialization succeeds, false otherwise.
+ */
 IMGUI_IMPL_API bool     ImGui_ImplWin32_Init(void* hwnd)
 {
     return ImGui_ImplWin32_InitEx(hwnd, false);
 }
 
+/**
+ * @brief Initializes the Win32 backend for use with OpenGL.
+ *
+ * Prepares the Dear ImGui platform backend for integration with an OpenGL rendering context by enabling support for windows with their own device context (CS_OWNDC).
+ *
+ * @param hwnd Handle to the application window.
+ * @return true if initialization succeeds, false otherwise.
+ */
 IMGUI_IMPL_API bool     ImGui_ImplWin32_InitForOpenGL(void* hwnd)
 {
     // OpenGL needs CS_OWNDC
     return ImGui_ImplWin32_InitEx(hwnd, true);
 }
 
+/**
+ * @brief Shuts down the Win32 platform backend for Dear ImGui and releases associated resources.
+ *
+ * Frees backend-specific data, unloads the XInput library if loaded, and clears ImGui platform backend flags and pointers.
+ */
 void    ImGui_ImplWin32_Shutdown()
 {
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
@@ -235,6 +284,14 @@ void    ImGui_ImplWin32_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Updates the OS mouse cursor shape to match the ImGui requested cursor.
+ *
+ * Hides the OS cursor if ImGui is drawing its own or requests no cursor. Otherwise, sets the OS cursor to the shape corresponding to the specified ImGui cursor type. Does nothing if mouse cursor changes are disabled via configuration flags.
+ *
+ * @param imgui_cursor The ImGui mouse cursor type to display.
+ * @return true if the cursor was updated, false if cursor changes are disabled.
+ */
 static bool ImGui_ImplWin32_UpdateMouseCursor(ImGuiIO& io, ImGuiMouseCursor imgui_cursor)
 {
     if (io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange)
@@ -268,11 +325,27 @@ static bool ImGui_ImplWin32_UpdateMouseCursor(ImGuiIO& io, ImGuiMouseCursor imgu
     return true;
 }
 
+/**
+ * @brief Returns whether the specified virtual key is currently pressed.
+ *
+ * @param vk Virtual-key code to check.
+ * @return true if the key is down; false otherwise.
+ */
 static bool IsVkDown(int vk)
 {
     return (::GetKeyState(vk) & 0x8000) != 0;
 }
 
+/**
+ * @brief Adds a key event to ImGui's input queue with associated native key data.
+ *
+ * Records a key press or release event and sets the native keycode and scancode for compatibility with legacy input handling.
+ *
+ * @param key The ImGuiKey representing the key event.
+ * @param down True if the key is pressed, false if released.
+ * @param native_keycode The platform-specific keycode.
+ * @param native_scancode The platform-specific scancode (optional).
+ */
 static void ImGui_ImplWin32_AddKeyEvent(ImGuiIO& io, ImGuiKey key, bool down, int native_keycode, int native_scancode = -1)
 {
     io.AddKeyEvent(key, down);
@@ -280,6 +353,12 @@ static void ImGui_ImplWin32_AddKeyEvent(ImGuiIO& io, ImGuiKey key, bool down, in
     IM_UNUSED(native_scancode);
 }
 
+/**
+ * @brief Applies workarounds for known Windows key event issues affecting Shift and Windows (Super) keys.
+ *
+ * Ensures that key release events for left/right Shift and Super keys are correctly registered in ImGui,
+ * compensating for cases where Windows may fail to send WM_KEYUP messages when both keys are pressed or for certain key combinations.
+ */
 static void ImGui_ImplWin32_ProcessKeyEventsWorkarounds(ImGuiIO& io)
 {
     // Left & right Shift keys: when both are pressed together, Windows tend to not generate the WM_KEYUP event for the first released one.
@@ -295,6 +374,11 @@ static void ImGui_ImplWin32_ProcessKeyEventsWorkarounds(ImGuiIO& io)
         ImGui_ImplWin32_AddKeyEvent(io, ImGuiKey_RightSuper, false, VK_RWIN);
 }
 
+/**
+ * @brief Updates the ImGui modifier key states based on the current state of Ctrl, Shift, Alt, and Super keys.
+ *
+ * Synchronizes ImGui's internal modifier key states with the actual state of the corresponding virtual keys in the Win32 environment.
+ */
 static void ImGui_ImplWin32_UpdateKeyModifiers(ImGuiIO& io)
 {
     io.AddKeyEvent(ImGuiMod_Ctrl, IsVkDown(VK_CONTROL));
@@ -303,6 +387,11 @@ static void ImGui_ImplWin32_UpdateKeyModifiers(ImGuiIO& io)
     io.AddKeyEvent(ImGuiMod_Super, IsVkDown(VK_LWIN) || IsVkDown(VK_RWIN));
 }
 
+/**
+ * @brief Updates ImGui's mouse position data based on the current OS cursor state.
+ *
+ * If the application window is focused, sets the OS mouse position if requested by ImGui, or updates ImGui's mouse position from the OS cursor when not actively tracking mouse movement. This ensures accurate mouse position reporting, including during focus changes or when moving between client and non-client window areas.
+ */
 static void ImGui_ImplWin32_UpdateMouseData(ImGuiIO& io)
 {
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData(io);
@@ -331,7 +420,11 @@ static void ImGui_ImplWin32_UpdateMouseData(ImGuiIO& io)
     }
 }
 
-// Gamepad navigation mapping
+/**
+ * @brief Updates ImGui gamepad input state using XInput.
+ *
+ * Queries the connected gamepad via XInput and maps its buttons and analog inputs to ImGui gamepad keys and analog events. Updates the backend flag to indicate gamepad support if a device is present. No action is taken if gamepad support is disabled or unavailable.
+ */
 static void ImGui_ImplWin32_UpdateGamepads(ImGuiIO& io)
 {
 #ifndef IMGUI_IMPL_WIN32_DISABLE_GAMEPAD
@@ -387,6 +480,11 @@ static void ImGui_ImplWin32_UpdateGamepads(ImGuiIO& io)
 #endif
 }
 
+/**
+ * @brief Prepares the Win32 backend for a new ImGui frame.
+ *
+ * Updates display size, time step, mouse and keyboard input state, mouse cursor, and gamepad state for the current frame. Should be called at the start of each frame before ImGui rendering.
+ */
 void    ImGui_ImplWin32_NewFrame()
 {
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
@@ -425,6 +523,15 @@ void    ImGui_ImplWin32_NewFrame()
 // Map VK_xxx to ImGuiKey_xxx.
 // Not static to allow third-party code to use that if they want to (but undocumented)
 ImGuiKey ImGui_ImplWin32_KeyEventToImGuiKey(WPARAM wParam, LPARAM lParam);
+/**
+ * @brief Maps Win32 virtual key codes and scancodes to ImGuiKey enums.
+ *
+ * Converts a Windows key event (WPARAM and LPARAM from a message) to the corresponding ImGuiKey value, handling special cases such as keypad Enter and OEM/scancode-based keys. Returns ImGuiKey_None if no mapping is found.
+ *
+ * @param wParam The virtual key code from the Windows message.
+ * @param lParam The message parameter containing key event information, including scancode.
+ * @return ImGuiKey The corresponding ImGuiKey, or ImGuiKey_None if unmapped.
+ */
 ImGuiKey ImGui_ImplWin32_KeyEventToImGuiKey(WPARAM wParam, LPARAM lParam)
 {
     // There is no distinct VK_xxx for keypad enter, instead it is VK_RETURN + KF_EXTENDED.
@@ -586,7 +693,13 @@ ImGuiKey ImGui_ImplWin32_KeyEventToImGuiKey(WPARAM wParam, LPARAM lParam)
 
 // Helper to obtain the source of mouse messages.
 // See https://learn.microsoft.com/en-us/windows/win32/tablet/system-events-and-mouse-messages
-// Prefer to call this at the top of the message handler to avoid the possibility of other Win32 calls interfering with this.
+/**
+ * @brief Determines the source of the current mouse input event.
+ *
+ * Inspects the extra information from the current Windows message to identify whether the input originated from a mouse, touchscreen, or pen device.
+ *
+ * @return ImGuiMouseSource The detected source of the mouse input event.
+ */
 static ImGuiMouseSource ImGui_ImplWin32_GetMouseSourceFromMessageExtraInfo()
 {
     LPARAM extra_info = ::GetMessageExtraInfo();
@@ -607,7 +720,13 @@ static ImGuiMouseSource ImGui_ImplWin32_GetMouseSourceFromMessageExtraInfo()
 
 // Copy either line into your .cpp file to forward declare the function:
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);                // Use ImGui::GetCurrentContext()
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, ImGuiIO& io); // Doesn't use ImGui::GetCurrentContext()
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam, ImGuiIO& io); /**
+ * @brief Processes Win32 window messages and forwards relevant input events to Dear ImGui.
+ *
+ * This function should be called from the application's window procedure (WndProc) to handle input events such as mouse, keyboard, and window focus changes for Dear ImGui. If no ImGui context is active, the function returns 0 and does not process the message.
+ *
+ * @return LRESULT Result of message processing, or 0 if no ImGui context is active.
+ */
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -618,7 +737,18 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARA
     return ImGui_ImplWin32_WndProcHandlerEx(hwnd, msg, wParam, lParam, ImGui::GetIO());
 }
 
-// This version is in theory thread-safe in the sense that no path should access ImGui::GetCurrentContext().
+/**
+ * @brief Processes Win32 window messages and updates ImGui input state.
+ *
+ * Handles mouse movement, button presses, mouse wheel, keyboard events, character input, focus changes, input language changes, cursor updates, and device changes. Updates the provided ImGuiIO instance with relevant input events for Dear ImGui. Intended to be called from the application's window procedure.
+ *
+ * @param hwnd Window handle receiving the message.
+ * @param msg Win32 message identifier.
+ * @param wParam Additional message information.
+ * @param lParam Additional message information.
+ * @param io Reference to the ImGuiIO instance to update.
+ * @return LRESULT Always returns 0 except for WM_SETCURSOR when the cursor is updated, in which case returns 1.
+ */
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, ImGuiIO& io)
 {
     ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData(io);
@@ -813,7 +943,15 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandlerEx(HWND hwnd, UINT msg, WPA
 //---------------------------------------------------------------------------------------------------------
 
 // Perform our own check with RtlVerifyVersionInfo() instead of using functions from <VersionHelpers.h> as they
-// require a manifest to be functional for checks above 8.1. See https://github.com/ocornut/imgui/issues/4200
+/**
+ * @brief Determines if the current Windows version is greater than or equal to the specified version.
+ *
+ * Checks the running Windows OS version against the provided major and minor version numbers using `RtlVerifyVersionInfo` from `ntdll.dll`.
+ *
+ * @param major Major version number to compare.
+ * @param minor Minor version number to compare.
+ * @return TRUE if the current Windows version is greater than or equal to the specified version, FALSE otherwise.
+ */
 static BOOL _IsWindowsVersionOrGreater(WORD major, WORD minor, WORD)
 {
     typedef LONG(WINAPI* PFN_RtlVerifyVersionInfo)(OSVERSIONINFOEXW*, ULONG, ULONGLONG);
@@ -854,7 +992,11 @@ typedef HRESULT(WINAPI* PFN_SetProcessDpiAwareness)(PROCESS_DPI_AWARENESS);     
 typedef HRESULT(WINAPI* PFN_GetDpiForMonitor)(HMONITOR, MONITOR_DPI_TYPE, UINT*, UINT*);        // Shcore.lib + dll, Windows 8.1+
 typedef DPI_AWARENESS_CONTEXT(WINAPI* PFN_SetThreadDpiAwarenessContext)(DPI_AWARENESS_CONTEXT); // User32.lib + dll, Windows 10 v1607+ (Creators Update)
 
-// Helper function to enable DPI awareness without setting up a manifest
+/**
+ * @brief Enables DPI awareness for the current process or thread at runtime.
+ *
+ * Attempts to set the highest available DPI awareness mode supported by the operating system, enabling per-monitor DPI scaling without requiring a manifest. Uses Windows 10+ thread-level DPI awareness if available, otherwise falls back to process-level DPI awareness on Windows 8.1+ or Vista+.
+ */
 void ImGui_ImplWin32_EnableDpiAwareness()
 {
     if (_IsWindows10OrGreater())
@@ -884,6 +1026,14 @@ void ImGui_ImplWin32_EnableDpiAwareness()
 #pragma comment(lib, "gdi32")   // Link with gdi32.lib for GetDeviceCaps(). MinGW will require linking with '-lgdi32'
 #endif
 
+/**
+ * @brief Returns the DPI scale factor for the specified monitor.
+ *
+ * Determines the DPI scaling for a given monitor handle, using modern Windows APIs when available or falling back to GDI methods. The returned value is relative to the standard 96 DPI (scale 1.0).
+ *
+ * @param monitor Handle to the monitor for which to retrieve the DPI scale.
+ * @return float DPI scale factor (e.g., 1.0 for 96 DPI, 1.25 for 120 DPI).
+ */
 float ImGui_ImplWin32_GetDpiScaleForMonitor(void* monitor)
 {
     UINT xdpi = 96, ydpi = 96;
@@ -910,6 +1060,12 @@ float ImGui_ImplWin32_GetDpiScaleForMonitor(void* monitor)
     return xdpi / 96.0f;
 }
 
+/**
+ * @brief Returns the DPI scale factor for the monitor nearest to the specified window.
+ *
+ * @param hwnd Handle to the window whose DPI scale is queried.
+ * @return float DPI scale factor for the monitor associated with the given window.
+ */
 float ImGui_ImplWin32_GetDpiScaleForHwnd(void* hwnd)
 {
     HMONITOR monitor = ::MonitorFromWindow((HWND)hwnd, MONITOR_DEFAULTTONEAREST);
@@ -926,7 +1082,13 @@ float ImGui_ImplWin32_GetDpiScaleForHwnd(void* hwnd)
 
 // [experimental]
 // Borrowed from GLFW's function updateFramebufferTransparency() in src/win32_window.c
-// (the Dwm* functions are Vista era functions but we are borrowing logic from GLFW)
+/**
+ * @brief Enables blur-behind-window (alpha compositing) effects for a window on supported Windows versions.
+ *
+ * If Desktop Window Manager (DWM) composition is enabled and the OS supports it (Windows Vista or later), this function enables blur or transparency effects behind the specified window. The effect varies depending on Windows version and colorization settings.
+ *
+ * @param hwnd Handle to the window for which to enable alpha compositing.
+ */
 void ImGui_ImplWin32_EnableAlphaCompositing(void* hwnd)
 {
     if (!_IsWindowsVistaOrGreater())

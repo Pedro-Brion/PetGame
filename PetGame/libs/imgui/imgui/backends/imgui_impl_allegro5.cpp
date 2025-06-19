@@ -104,14 +104,28 @@ struct ImGui_ImplAllegro5_Data
     ImVector<ImDrawVertAllegro> BufVertices;
     ImVector<int>               BufIndices;
 
-    ImGui_ImplAllegro5_Data()   { memset((void*)this, 0, sizeof(*this)); }
+    /**
+ * @brief Initializes all members of the ImGui_ImplAllegro5_Data structure to zero.
+ */
+ImGui_ImplAllegro5_Data()   { memset((void*)this, 0, sizeof(*this)); }
 };
 
 // Backend data stored in io.BackendPlatformUserData to allow support for multiple Dear ImGui contexts
 // It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
-// FIXME: multi-context support is not well tested and probably dysfunctional in this backend.
+/**
+ * @brief Retrieves the Allegro 5 backend data for the current ImGui context.
+ *
+ * @return Pointer to the backend data, or nullptr if no ImGui context is active.
+ */
 static ImGui_ImplAllegro5_Data* ImGui_ImplAllegro5_GetBackendData()     { return ImGui::GetCurrentContext() ? (ImGui_ImplAllegro5_Data*)ImGui::GetIO().BackendPlatformUserData : nullptr; }
 
+/**
+ * @brief Configures Allegro's render state for ImGui drawing.
+ *
+ * Sets up blending and an orthographic projection matrix to match ImGui's display position and size, preparing Allegro for rendering ImGui draw data.
+ *
+ * @param draw_data ImGui draw data containing display position and size.
+ */
 static void ImGui_ImplAllegro5_SetupRenderState(ImDrawData* draw_data)
 {
     // Setup blending
@@ -132,7 +146,15 @@ static void ImGui_ImplAllegro5_SetupRenderState(ImDrawData* draw_data)
     }
 }
 
-// Render function.
+/**
+ * @brief Renders ImGui draw data using Allegro 5.
+ *
+ * Processes ImGui's draw lists and issues Allegro 5 rendering commands to display ImGui's UI elements. Handles texture updates, vertex and index buffer conversion, user callbacks, and applies scissor rectangles for clipping. Restores Allegro's graphics state after rendering.
+ *
+ * Rendering is skipped if the display size is zero or negative.
+ *
+ * @param draw_data ImGui draw data to render.
+ */
 void ImGui_ImplAllegro5_RenderDrawData(ImDrawData* draw_data)
 {
     // Avoid rendering when minimized
@@ -239,6 +261,14 @@ void ImGui_ImplAllegro5_RenderDrawData(ImDrawData* draw_data)
     al_use_projection_transform(&last_projection_transform);
 }
 
+/**
+ * @brief Creates device-dependent objects required by the Allegro 5 ImGui backend.
+ *
+ * Specifically creates an invisible mouse cursor to support proper cursor hiding behavior in Allegro.
+ * Should be called after initializing the Allegro display and before rendering frames.
+ *
+ * @return true Always returns true upon successful creation.
+ */
 bool ImGui_ImplAllegro5_CreateDeviceObjects()
 {
     ImGui_ImplAllegro5_Data* bd = ImGui_ImplAllegro5_GetBackendData();
@@ -252,6 +282,11 @@ bool ImGui_ImplAllegro5_CreateDeviceObjects()
     return true;
 }
 
+/**
+ * @brief Creates, updates, or destroys an Allegro bitmap based on the texture's status.
+ *
+ * Handles the lifecycle of an ImGui texture by creating a new Allegro bitmap and uploading pixel data, updating specified regions of an existing bitmap, or destroying the bitmap as requested by the texture status.
+ */
 void ImGui_ImplAllegro5_UpdateTexture(ImTextureData* tex)
 {
     if (tex->Status == ImTextureStatus_WantCreate)
@@ -314,6 +349,11 @@ void ImGui_ImplAllegro5_UpdateTexture(ImTextureData* tex)
     }
 }
 
+/**
+ * @brief Destroys Allegro device objects used by the ImGui backend.
+ *
+ * Releases all Allegro textures with a single reference and destroys the invisible mouse cursor if it exists.
+ */
 void ImGui_ImplAllegro5_InvalidateDeviceObjects()
 {
     ImGui_ImplAllegro5_Data* bd = ImGui_ImplAllegro5_GetBackendData();
@@ -335,6 +375,13 @@ void ImGui_ImplAllegro5_InvalidateDeviceObjects()
 }
 
 #if ALLEGRO_HAS_CLIPBOARD
+/**
+ * @brief Retrieves the current clipboard text from the Allegro display.
+ *
+ * Frees any previously stored clipboard text and updates the backend's clipboard buffer with the latest text from the system clipboard.
+ *
+ * @return Pointer to the clipboard text, or nullptr if unavailable.
+ */
 static const char* ImGui_ImplAllegro5_GetClipboardText(ImGuiContext*)
 {
     ImGui_ImplAllegro5_Data* bd = ImGui_ImplAllegro5_GetBackendData();
@@ -344,6 +391,13 @@ static const char* ImGui_ImplAllegro5_GetClipboardText(ImGuiContext*)
     return bd->ClipboardTextData;
 }
 
+/**
+ * @brief Sets the system clipboard text using Allegro.
+ *
+ * Replaces the current clipboard contents with the specified text string.
+ *
+ * @param text Null-terminated UTF-8 string to set as clipboard contents.
+ */
 static void ImGui_ImplAllegro5_SetClipboardText(ImGuiContext*, const char* text)
 {
     ImGui_ImplAllegro5_Data* bd = ImGui_ImplAllegro5_GetBackendData();
@@ -353,6 +407,14 @@ static void ImGui_ImplAllegro5_SetClipboardText(ImGuiContext*, const char* text)
 
 // Not static to allow third-party code to use that if they want to (but undocumented)
 ImGuiKey ImGui_ImplAllegro5_KeyCodeToImGuiKey(int key_code);
+/**
+ * @brief Maps an Allegro key code to the corresponding ImGuiKey.
+ *
+ * Converts an Allegro 5 keyboard key code to the equivalent ImGuiKey enum value for input processing.
+ *
+ * @param key_code Allegro key code to translate.
+ * @return ImGuiKey corresponding to the given Allegro key code, or ImGuiKey_None if there is no match.
+ */
 ImGuiKey ImGui_ImplAllegro5_KeyCodeToImGuiKey(int key_code)
 {
     switch (key_code)
@@ -466,6 +528,14 @@ ImGuiKey ImGui_ImplAllegro5_KeyCodeToImGuiKey(int key_code)
     }
 }
 
+/**
+ * @brief Initializes the Dear ImGui backend for Allegro 5 with the specified display.
+ *
+ * Sets up backend data, configures ImGui backend flags for mouse cursor and texture support, creates a custom Allegro vertex declaration for rendering, and integrates clipboard support if available.
+ *
+ * @param display Pointer to the Allegro display to be used for rendering.
+ * @return true on successful initialization.
+ */
 bool ImGui_ImplAllegro5_Init(ALLEGRO_DISPLAY* display)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -503,6 +573,11 @@ bool ImGui_ImplAllegro5_Init(ALLEGRO_DISPLAY* display)
     return true;
 }
 
+/**
+ * @brief Shuts down the ImGui Allegro 5 backend and releases all associated resources.
+ *
+ * Cleans up backend data, destroys device objects, frees memory, and resets ImGui backend state.
+ */
 void ImGui_ImplAllegro5_Shutdown()
 {
     ImGui_ImplAllegro5_Data* bd = ImGui_ImplAllegro5_GetBackendData();
@@ -521,7 +596,11 @@ void ImGui_ImplAllegro5_Shutdown()
     IM_DELETE(bd);
 }
 
-// ev->keyboard.modifiers seems always zero so using that...
+/**
+ * @brief Updates ImGui's modifier key states based on the current Allegro keyboard state.
+ *
+ * Queries the Allegro keyboard for the status of Ctrl, Shift, Alt, and Super (Windows) keys and updates ImGui's input state accordingly.
+ */
 static void ImGui_ImplAllegro5_UpdateKeyModifiers()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -536,7 +615,14 @@ static void ImGui_ImplAllegro5_UpdateKeyModifiers()
 // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
 // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
 // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
-// Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
+/**
+ * @brief Processes an Allegro event and updates ImGui input state accordingly.
+ *
+ * Handles Allegro mouse, touch, keyboard, and display events, forwarding relevant input to ImGui. Returns true if the event was processed by the backend, otherwise false.
+ *
+ * @param ev Pointer to the Allegro event to process.
+ * @return true if the event was handled and forwarded to ImGui; false otherwise.
+ */
 bool ImGui_ImplAllegro5_ProcessEvent(ALLEGRO_EVENT* ev)
 {
     ImGui_ImplAllegro5_Data* bd = ImGui_ImplAllegro5_GetBackendData();
@@ -603,6 +689,11 @@ bool ImGui_ImplAllegro5_ProcessEvent(ALLEGRO_EVENT* ev)
     return false;
 }
 
+/**
+ * @brief Updates the OS mouse cursor to match ImGui's current cursor state.
+ *
+ * Hides the OS cursor if ImGui is drawing its own, or sets the system cursor to correspond with ImGui's requested cursor type. Skips updates if cursor changes are disabled or if the cursor type has not changed since the last update.
+ */
 static void ImGui_ImplAllegro5_UpdateMouseCursor()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -642,6 +733,11 @@ static void ImGui_ImplAllegro5_UpdateMouseCursor()
     }
 }
 
+/**
+ * @brief Prepares the ImGui frame for rendering and input using Allegro 5.
+ *
+ * Updates display size, delta time, and mouse cursor state based on the current Allegro display and timing information. Should be called at the start of each new frame before ImGui rendering and input processing.
+ */
 void ImGui_ImplAllegro5_NewFrame()
 {
     ImGui_ImplAllegro5_Data* bd = ImGui_ImplAllegro5_GetBackendData();

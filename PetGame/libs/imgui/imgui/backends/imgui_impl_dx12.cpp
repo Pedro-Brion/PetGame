@@ -70,7 +70,10 @@ struct ImGui_ImplDX12_Texture
     D3D12_CPU_DESCRIPTOR_HANDLE hFontSrvCpuDescHandle;
     D3D12_GPU_DESCRIPTOR_HANDLE hFontSrvGpuDescHandle;
 
-    ImGui_ImplDX12_Texture()    { memset((void*)this, 0, sizeof(*this)); }
+    /**
+ * @brief Constructs an ImGui_ImplDX12_Texture and initializes all members to zero.
+ */
+ImGui_ImplDX12_Texture()    { memset((void*)this, 0, sizeof(*this)); }
 };
 
 struct ImGui_ImplDX12_Data
@@ -92,11 +95,20 @@ struct ImGui_ImplDX12_Data
     ImGui_ImplDX12_Texture      FontTexture;
     bool                        LegacySingleDescriptorUsed;
 
-    ImGui_ImplDX12_Data()       { memset((void*)this, 0, sizeof(*this)); frameIndex = UINT_MAX; }
+    /**
+ * @brief Constructs an ImGui_ImplDX12_Data object and initializes all members to zero.
+ *
+ * Sets the frame index to UINT_MAX to indicate an uninitialized state.
+ */
+ImGui_ImplDX12_Data()       { memset((void*)this, 0, sizeof(*this)); frameIndex = UINT_MAX; }
 };
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
-// It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
+/**
+ * @brief Retrieves the DirectX 12 backend data for the current Dear ImGui context.
+ *
+ * @return Pointer to the backend data structure, or nullptr if no context is active.
+ */
 static ImGui_ImplDX12_Data* ImGui_ImplDX12_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplDX12_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
@@ -116,7 +128,15 @@ struct VERTEX_CONSTANT_BUFFER_DX12
     float   mvp[4][4];
 };
 
-// Functions
+/**
+ * @brief Configures the DirectX 12 graphics pipeline state for rendering ImGui draw data.
+ *
+ * Sets up the orthographic projection matrix, viewport, vertex and index buffers, primitive topology, pipeline state, root signature, and blend factors required for rendering ImGui elements using the provided command list and frame resources.
+ *
+ * @param draw_data ImGui draw data containing display position, size, and framebuffer scale.
+ * @param command_list DirectX 12 graphics command list to record rendering commands.
+ * @param fr Frame resources containing vertex and index buffers for the current frame.
+ */
 static void ImGui_ImplDX12_SetupRenderState(ImDrawData* draw_data, ID3D12GraphicsCommandList* command_list, ImGui_ImplDX12_RenderBuffers* fr)
 {
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
@@ -172,6 +192,11 @@ static void ImGui_ImplDX12_SetupRenderState(ImDrawData* draw_data, ID3D12Graphic
 }
 
 template<typename T>
+/**
+ * @brief Releases a COM resource and sets its pointer to null.
+ *
+ * Safely calls Release() on the given COM object pointer if it is not null, then sets the pointer to nullptr.
+ */
 static inline void SafeRelease(T*& res)
 {
     if (res)
@@ -179,7 +204,14 @@ static inline void SafeRelease(T*& res)
     res = nullptr;
 }
 
-// Render function
+/**
+ * @brief Renders Dear ImGui draw data using a DirectX 12 command list.
+ *
+ * Uploads ImGui vertex and index data to GPU buffers, sets up the DirectX 12 pipeline state, and issues draw calls for each ImGui draw command. Handles dynamic buffer resizing, texture updates, user callbacks, and scissor rectangles per draw command. Skips rendering if the display size is zero or negative.
+ *
+ * @param draw_data ImGui draw data to render.
+ * @param command_list DirectX 12 graphics command list used for rendering.
+ */
 void ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandList* command_list)
 {
     // Avoid rendering when minimized
@@ -325,6 +357,11 @@ void ImGui_ImplDX12_RenderDrawData(ImDrawData* draw_data, ID3D12GraphicsCommandL
     platform_io.Renderer_RenderState = nullptr;
 }
 
+/**
+ * @brief Releases and destroys a DirectX 12 texture resource associated with ImTextureData.
+ *
+ * Frees the shader resource view (SRV) descriptor, releases the GPU texture resource, clears descriptor handles, and deletes backend texture data. Marks the texture as destroyed and invalidates its identifiers.
+ */
 static void ImGui_ImplDX12_DestroyTexture(ImTextureData* tex)
 {
     ImGui_ImplDX12_Texture* backend_tex = (ImGui_ImplDX12_Texture*)tex->BackendUserData;
@@ -344,6 +381,13 @@ static void ImGui_ImplDX12_DestroyTexture(ImTextureData* tex)
     tex->BackendUserData = nullptr;
 }
 
+/**
+ * @brief Creates, updates, or destroys a DirectX 12 texture resource based on the status of the given ImTextureData.
+ *
+ * If the texture status is `WantCreate`, allocates a new GPU texture resource and shader resource view (SRV), and assigns the appropriate texture ID and backend data.  
+ * If the status is `WantCreate` or `WantUpdates`, uploads pixel data to the GPU texture, handling resource barriers and synchronization to ensure the update is complete before use.  
+ * If the status is `WantDestroy` and the texture has been unused for enough frames, releases the associated GPU resource and descriptor.
+ */
 void ImGui_ImplDX12_UpdateTexture(ImTextureData* tex)
 {
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
@@ -539,6 +583,13 @@ void ImGui_ImplDX12_UpdateTexture(ImTextureData* tex)
         ImGui_ImplDX12_DestroyTexture(tex);
 }
 
+/**
+ * @brief Creates and initializes all DirectX 12 device objects required for ImGui rendering.
+ *
+ * This includes creating the root signature, compiling and setting up vertex and pixel shaders, configuring input layout, blend, rasterizer, and depth-stencil states, and creating the graphics pipeline state object (PSO). The function dynamically loads and serializes the root signature to support D3D12On7 compatibility. Returns false if any step fails.
+ *
+ * @return true if all device objects were successfully created, false otherwise.
+ */
 bool    ImGui_ImplDX12_CreateDeviceObjects()
 {
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
@@ -771,6 +822,11 @@ bool    ImGui_ImplDX12_CreateDeviceObjects()
     return true;
 }
 
+/**
+ * @brief Releases all DirectX 12 device objects and resources used by the ImGui backend.
+ *
+ * Frees the root signature, pipeline state, command queue (if owned), all textures with a reference count of 1, and per-frame vertex and index buffers.
+ */
 void    ImGui_ImplDX12_InvalidateDeviceObjects()
 {
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
@@ -796,6 +852,14 @@ void    ImGui_ImplDX12_InvalidateDeviceObjects()
     }
 }
 
+/**
+ * @brief Initializes the Dear ImGui DirectX 12 renderer backend with the provided initialization info.
+ *
+ * Sets up backend state, device pointers, descriptor heap, and frame resources for rendering with DirectX 12. Supports user texture binding and large mesh rendering. Legacy single-descriptor allocation is handled for backward compatibility.
+ *
+ * @param init_info Pointer to a structure containing device, command queue, formats, descriptor heap, and allocation/free functions for descriptors.
+ * @return true if initialization succeeds.
+ */
 bool ImGui_ImplDX12_Init(ImGui_ImplDX12_InitInfo* init_info)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -860,7 +924,19 @@ bool ImGui_ImplDX12_Init(ImGui_ImplDX12_InitInfo* init_info)
 
 #ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 // Legacy initialization API Obsoleted in 1.91.5
-// font_srv_cpu_desc_handle and font_srv_gpu_desc_handle are handles to a single SRV descriptor to use for the internal font texture, they must be in 'srv_descriptor_heap'
+/**
+ * @brief Initializes the Dear ImGui DirectX 12 renderer backend using legacy parameters.
+ *
+ * This function sets up the backend with a single SRV descriptor for the font texture and creates an internal command queue. It is intended for backward compatibility and does not support multiple texture bindings.
+ *
+ * @param device Pointer to the DirectX 12 device.
+ * @param num_frames_in_flight Number of frames in flight for buffering.
+ * @param rtv_format Render target view format.
+ * @param srv_descriptor_heap Descriptor heap containing the font SRV.
+ * @param font_srv_cpu_desc_handle CPU descriptor handle for the font texture SRV.
+ * @param font_srv_gpu_desc_handle GPU descriptor handle for the font texture SRV.
+ * @return true if initialization succeeds, false otherwise.
+ */
 bool ImGui_ImplDX12_Init(ID3D12Device* device, int num_frames_in_flight, DXGI_FORMAT rtv_format, ID3D12DescriptorHeap* srv_descriptor_heap, D3D12_CPU_DESCRIPTOR_HANDLE font_srv_cpu_desc_handle, D3D12_GPU_DESCRIPTOR_HANDLE font_srv_gpu_desc_handle)
 {
     ImGui_ImplDX12_InitInfo init_info;
@@ -888,6 +964,11 @@ bool ImGui_ImplDX12_Init(ID3D12Device* device, int num_frames_in_flight, DXGI_FO
 }
 #endif
 
+/**
+ * @brief Shuts down the DirectX 12 ImGui renderer backend and releases all associated resources.
+ *
+ * Frees device objects, frame resources, and resets backend state in the ImGui context.
+ */
 void ImGui_ImplDX12_Shutdown()
 {
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
@@ -904,6 +985,11 @@ void ImGui_ImplDX12_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Prepares the DirectX 12 backend for a new ImGui frame.
+ *
+ * Ensures that required device objects are created before rendering begins.
+ */
 void ImGui_ImplDX12_NewFrame()
 {
     ImGui_ImplDX12_Data* bd = ImGui_ImplDX12_GetBackendData();
