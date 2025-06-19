@@ -77,12 +77,29 @@ static void ImGui_ImplSDLGPU3_DestroyFrameData();
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
 // It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
-// FIXME: multi-context support has never been tested.
+/**
+ * @brief Retrieves the backend data for the SDL_GPU3 ImGui renderer from the current ImGui context.
+ *
+ * @return Pointer to the backend data if a context exists, or nullptr otherwise.
+ */
 static ImGui_ImplSDLGPU3_Data* ImGui_ImplSDLGPU3_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplSDLGPU3_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
 }
 
+/**
+ * @brief Configures the GPU render state for ImGui rendering.
+ *
+ * Binds the graphics pipeline, vertex and index buffers, sets the viewport, and uploads uniform data for coordinate transformation to prepare for drawing ImGui elements.
+ *
+ * @param draw_data ImGui draw data to be rendered.
+ * @param pipeline Graphics pipeline to use for rendering.
+ * @param command_buffer Command buffer for issuing GPU commands.
+ * @param render_pass Render pass in which drawing occurs.
+ * @param fd Frame data containing GPU buffers for the current frame.
+ * @param fb_width Width of the framebuffer in pixels.
+ * @param fb_height Height of the framebuffer in pixels.
+ */
 static void ImGui_ImplSDLGPU3_SetupRenderState(ImDrawData* draw_data, SDL_GPUGraphicsPipeline* pipeline, SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass * render_pass, ImGui_ImplSDLGPU3_FrameData* fd, uint32_t fb_width, uint32_t fb_height)
 {
     //ImGui_ImplSDLGPU3_Data* bd = ImGui_ImplSDLGPU3_GetBackendData();
@@ -123,6 +140,17 @@ static void ImGui_ImplSDLGPU3_SetupRenderState(ImDrawData* draw_data, SDL_GPUGra
     SDL_PushGPUVertexUniformData(command_buffer, 0, &ubo, sizeof(UBO));
 }
 
+/**
+ * @brief Creates or resizes GPU and transfer buffers to the specified size and usage.
+ *
+ * Releases any existing buffers, waits for the GPU to become idle, and allocates new GPU and transfer buffers with the given size and usage flags. Updates the old size to reflect the new allocation.
+ *
+ * @param buffer Pointer to the GPU buffer to create or resize.
+ * @param transferbuffer Pointer to the transfer buffer to create or resize.
+ * @param old_size Pointer to the current buffer size, updated to the new size.
+ * @param new_size The desired size for the buffers.
+ * @param usage Usage flags for the GPU buffer.
+ */
 static void CreateOrResizeBuffers(SDL_GPUBuffer** buffer, SDL_GPUTransferBuffer** transferbuffer, uint32_t* old_size, uint32_t new_size, SDL_GPUBufferUsageFlags usage)
 {
     ImGui_ImplSDLGPU3_Data* bd = ImGui_ImplSDLGPU3_GetBackendData();
@@ -150,7 +178,14 @@ static void CreateOrResizeBuffers(SDL_GPUBuffer** buffer, SDL_GPUTransferBuffer*
 
 // SDL_GPU doesn't allow copy passes to occur while a render or compute pass is bound!
 // The only way to allow a user to supply their own RenderPass (to render to a texture instead of the window for example),
-// is to split the upload part of ImGui_ImplSDLGPU3_RenderDrawData() to another function that needs to be called by the user before rendering.
+/**
+ * @brief Uploads ImGui draw data to GPU buffers in preparation for rendering.
+ *
+ * Copies vertex and index data from ImGui's draw lists into GPU buffers using transfer buffers. Also processes any pending texture updates. This function must be called before issuing a render pass that draws ImGui content.
+ *
+ * @param draw_data ImGui draw data to upload.
+ * @param command_buffer GPU command buffer used for the copy operations.
+ */
 void ImGui_ImplSDLGPU3_PrepareDrawData(ImDrawData* draw_data, SDL_GPUCommandBuffer* command_buffer)
 {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
@@ -213,6 +248,16 @@ void ImGui_ImplSDLGPU3_PrepareDrawData(ImDrawData* draw_data, SDL_GPUCommandBuff
     SDL_EndGPUCopyPass(copy_pass);
 }
 
+/**
+ * @brief Renders ImGui draw data using SDL_GPU3.
+ *
+ * Iterates over ImGui draw lists and issues GPU draw calls for each command, applying scissor rectangles and binding textures as needed. Handles user callbacks, including render state resets, and restores the scissor rectangle to the full viewport at the end.
+ *
+ * @param draw_data ImGui draw data to render.
+ * @param command_buffer The GPU command buffer for recording rendering commands.
+ * @param render_pass The active GPU render pass.
+ * @param pipeline The graphics pipeline to use; if null, the default backend pipeline is used.
+ */
 void ImGui_ImplSDLGPU3_RenderDrawData(ImDrawData* draw_data, SDL_GPUCommandBuffer* command_buffer, SDL_GPURenderPass* render_pass, SDL_GPUGraphicsPipeline* pipeline)
 {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
@@ -293,6 +338,11 @@ void ImGui_ImplSDLGPU3_RenderDrawData(ImDrawData* draw_data, SDL_GPUCommandBuffe
     SDL_SetGPUScissor(render_pass, &scissor_rect);
 }
 
+/**
+ * @brief Destroys the GPU texture associated with the given ImTextureData.
+ *
+ * Releases the GPU texture and deletes the backend texture structure. Clears the texture ID, marks the texture as destroyed, and resets backend user data.
+ */
 static void ImGui_ImplSDLGPU3_DestroyTexture(ImTextureData* tex)
 {
     ImGui_ImplSDLGPU3_Data* bd = ImGui_ImplSDLGPU3_GetBackendData();
@@ -310,6 +360,11 @@ static void ImGui_ImplSDLGPU3_DestroyTexture(ImTextureData* tex)
     tex->BackendUserData = nullptr;
 }
 
+/**
+ * @brief Creates, updates, or destroys an SDL_GPU texture for an ImTextureData object.
+ *
+ * Handles texture creation and uploading pixel data to the GPU when requested, updates specified regions of an existing texture, or destroys the texture if marked for deletion. Uses a transfer buffer for efficient data upload.
+ */
 void ImGui_ImplSDLGPU3_UpdateTexture(ImTextureData* tex)
 {
     ImGui_ImplSDLGPU3_Data* bd = ImGui_ImplSDLGPU3_GetBackendData();
@@ -406,6 +461,11 @@ void ImGui_ImplSDLGPU3_UpdateTexture(ImTextureData* tex)
         ImGui_ImplSDLGPU3_DestroyTexture(tex);
 }
 
+/**
+ * @brief Creates and initializes the vertex and fragment shaders for the renderer backend.
+ *
+ * Selects and loads the appropriate shader binaries based on the active GPU device driver (Vulkan, Direct3D12, or Metal on Apple platforms), and creates the corresponding shader modules required for rendering ImGui draw data.
+ */
 static void ImGui_ImplSDLGPU3_CreateShaders()
 {
     // Create the shader modules
@@ -467,6 +527,11 @@ static void ImGui_ImplSDLGPU3_CreateShaders()
     IM_ASSERT(bd->FragmentShader != nullptr && "Failed to create fragment shader, call SDL_GetError() for more information");
 }
 
+/**
+ * @brief Creates and configures the graphics pipeline for ImGui rendering.
+ *
+ * Sets up the vertex input layout, rasterizer, multisample, depth-stencil, and blend states, then creates the graphics pipeline using the initialized shaders and device. Asserts if pipeline creation fails.
+ */
 static void ImGui_ImplSDLGPU3_CreateGraphicsPipeline()
 {
     ImGui_ImplSDLGPU3_Data* bd = ImGui_ImplSDLGPU3_GetBackendData();
@@ -550,6 +615,11 @@ static void ImGui_ImplSDLGPU3_CreateGraphicsPipeline()
     IM_ASSERT(bd->Pipeline != nullptr && "Failed to create graphics pipeline, call SDL_GetError() for more information");
 }
 
+/**
+ * @brief Creates GPU device objects required for ImGui rendering.
+ *
+ * Destroys any existing device objects, then creates a bilinear texture sampler if not already present and sets up the graphics pipeline for rendering.
+ */
 void ImGui_ImplSDLGPU3_CreateDeviceObjects()
 {
     ImGui_ImplSDLGPU3_Data* bd = ImGui_ImplSDLGPU3_GetBackendData();
@@ -581,6 +651,11 @@ void ImGui_ImplSDLGPU3_CreateDeviceObjects()
     ImGui_ImplSDLGPU3_CreateGraphicsPipeline();
 }
 
+/**
+ * @brief Releases GPU buffers and transfer buffers used for frame rendering.
+ *
+ * Frees the vertex and index buffers, as well as their associated transfer buffers, for the main window frame data and resets their pointers and sizes.
+ */
 void ImGui_ImplSDLGPU3_DestroyFrameData()
 {
     ImGui_ImplSDLGPU3_Data* bd = ImGui_ImplSDLGPU3_GetBackendData();
@@ -596,6 +671,11 @@ void ImGui_ImplSDLGPU3_DestroyFrameData()
     fd->VertexBufferSize = fd->IndexBufferSize = 0;
 }
 
+/**
+ * @brief Destroys all GPU device objects used by the ImGui SDL_GPU3 renderer backend.
+ *
+ * Releases GPU resources including frame data buffers, textures with a reference count of 1, texture transfer buffer, shaders, sampler, and graphics pipeline.
+ */
 void ImGui_ImplSDLGPU3_DestroyDeviceObjects()
 {
     ImGui_ImplSDLGPU3_Data* bd = ImGui_ImplSDLGPU3_GetBackendData();
@@ -614,6 +694,14 @@ void ImGui_ImplSDLGPU3_DestroyDeviceObjects()
     if (bd->Pipeline)           { SDL_ReleaseGPUGraphicsPipeline(v->Device, bd->Pipeline); bd->Pipeline = nullptr; }
 }
 
+/**
+ * @brief Initializes the Dear ImGui renderer backend for SDL_GPU3.
+ *
+ * Sets up backend capabilities, stores initialization information, and prepares the backend for rendering with SDL_GPU3. Must be called before using any other backend functions.
+ *
+ * @param info Pointer to the initialization info structure containing device and format details.
+ * @return true on successful initialization.
+ */
 bool ImGui_ImplSDLGPU3_Init(ImGui_ImplSDLGPU3_InitInfo* info)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -635,6 +723,11 @@ bool ImGui_ImplSDLGPU3_Init(ImGui_ImplSDLGPU3_InitInfo* info)
     return true;
 }
 
+/**
+ * @brief Shuts down the SDL_GPU3 ImGui renderer backend and releases all associated GPU resources.
+ *
+ * Cleans up device objects, resets backend state in ImGui IO, and deallocates backend data.
+ */
 void ImGui_ImplSDLGPU3_Shutdown()
 {
     ImGui_ImplSDLGPU3_Data* bd = ImGui_ImplSDLGPU3_GetBackendData();
@@ -648,6 +741,11 @@ void ImGui_ImplSDLGPU3_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Prepares the SDL_GPU3 backend for a new ImGui frame.
+ *
+ * Ensures that required device objects are created before starting a new frame. Should be called at the beginning of each frame after initialization.
+ */
 void ImGui_ImplSDLGPU3_NewFrame()
 {
     ImGui_ImplSDLGPU3_Data* bd = ImGui_ImplSDLGPU3_GetBackendData();

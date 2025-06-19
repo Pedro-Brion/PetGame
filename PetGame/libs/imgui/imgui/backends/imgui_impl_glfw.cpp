@@ -177,7 +177,10 @@ struct ImGui_ImplGlfw_Data
     WNDPROC                 PrevWndProc;
 #endif
 
-    ImGui_ImplGlfw_Data()   { memset((void*)this, 0, sizeof(*this)); }
+    /**
+ * @brief Constructs an ImGui_ImplGlfw_Data object and initializes all members to zero.
+ */
+ImGui_ImplGlfw_Data()   { memset((void*)this, 0, sizeof(*this)); }
 };
 
 // Backend data stored in io.BackendPlatformUserData to allow support for multiple Dear ImGui contexts
@@ -186,7 +189,11 @@ struct ImGui_ImplGlfw_Data
 // - Because glfwPollEvents() process all windows and some events may be called outside of it, you will need to register your own callbacks
 //   (passing install_callbacks=false in ImGui_ImplGlfw_InitXXX functions), set the current dear imgui context and then call our callbacks.
 // - Otherwise we may need to store a GLFWWindow* -> ImGuiContext* map and handle this in the backend, adding a little bit of extra complexity to it.
-// FIXME: some shared resources (mouse cursor shape, gamepad) are mishandled when using multi-context.
+/**
+ * @brief Retrieves the backend data structure for the current Dear ImGui context.
+ *
+ * @return Pointer to the ImGui_ImplGlfw_Data associated with the current context, or nullptr if no context is active.
+ */
 static ImGui_ImplGlfw_Data* ImGui_ImplGlfw_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplGlfw_Data*)ImGui::GetIO().BackendPlatformUserData : nullptr;
@@ -196,6 +203,15 @@ static ImGui_ImplGlfw_Data* ImGui_ImplGlfw_GetBackendData()
 
 // Not static to allow third-party code to use that if they want to (but undocumented)
 ImGuiKey ImGui_ImplGlfw_KeyToImGuiKey(int keycode, int scancode);
+/**
+ * @brief Maps a GLFW key code to the corresponding ImGuiKey.
+ *
+ * Converts a GLFW key code to the equivalent ImGuiKey value for keyboard input handling. Returns ImGuiKey_None if the key code does not have a corresponding ImGuiKey.
+ *
+ * @param keycode GLFW key code to translate.
+ * @param scancode Unused.
+ * @return ImGuiKey The corresponding ImGuiKey, or ImGuiKey_None if unmapped.
+ */
 ImGuiKey ImGui_ImplGlfw_KeyToImGuiKey(int keycode, int scancode)
 {
     IM_UNUSED(scancode);
@@ -325,7 +341,11 @@ ImGuiKey ImGui_ImplGlfw_KeyToImGuiKey(int keycode, int scancode)
 }
 
 // X11 does not include current pressed/released modifier key in 'mods' flags submitted by GLFW
-// See https://github.com/ocornut/imgui/issues/6034 and https://github.com/glfw/glfw/issues/1630
+/**
+ * @brief Updates ImGui modifier key states based on the current GLFW window.
+ *
+ * Queries the GLFW window for the state of Ctrl, Shift, Alt, and Super keys, and updates ImGui's internal modifier key states accordingly.
+ */
 static void ImGui_ImplGlfw_UpdateKeyModifiers(GLFWwindow* window)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -335,12 +355,25 @@ static void ImGui_ImplGlfw_UpdateKeyModifiers(GLFWwindow* window)
     io.AddKeyEvent(ImGuiMod_Super, (glfwGetKey(window, GLFW_KEY_LEFT_SUPER)   == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_SUPER)   == GLFW_PRESS));
 }
 
+/**
+ * @brief Determines whether user-installed GLFW callbacks should be chained for a given window.
+ *
+ * Returns true if callback chaining is enabled for all windows, or if the specified window is the main ImGui window.
+ *
+ * @param window The GLFW window to check for callback chaining.
+ * @return true if callbacks should be chained for this window, false otherwise.
+ */
 static bool ImGui_ImplGlfw_ShouldChainCallback(GLFWwindow* window)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
     return bd->CallbacksChainForAllWindows ? true : (window == bd->Window);
 }
 
+/**
+ * @brief Handles GLFW mouse button events and updates ImGui input state.
+ *
+ * Chains to any previously installed user mouse button callback if applicable, updates ImGui modifier keys, and reports mouse button press or release events to ImGui.
+ */
 void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -354,6 +387,11 @@ void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int acti
         io.AddMouseButtonEvent(button, action == GLFW_PRESS);
 }
 
+/**
+ * @brief Handles GLFW mouse wheel scroll events and forwards them to ImGui.
+ *
+ * Chains to any previously installed user scroll callback if applicable, and updates ImGui's mouse wheel state with the scroll offsets. On Emscripten with embedded GLFW3, the event is ignored as it is handled elsewhere.
+ */
 void ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -369,7 +407,15 @@ void ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yo
     io.AddMouseWheelEvent((float)xoffset, (float)yoffset);
 }
 
-// FIXME: should this be baked into ImGui_ImplGlfw_KeyToImGuiKey()? then what about the values passed to io.SetKeyEventNativeData()?
+/**
+ * @brief Attempts to re-translate a GLFW key code to its expected character key.
+ *
+ * Provides a workaround for GLFW's untranslated key codes by using glfwGetKeyName to map keys back to their character equivalents, improving compatibility with lettered shortcuts and common key inputs.
+ *
+ * @param key The GLFW key code to translate.
+ * @param scancode The platform-specific scancode associated with the key.
+ * @return int The translated GLFW key code, or the original key if no translation is possible.
+ */
 static int ImGui_ImplGlfw_TranslateUntranslatedKey(int key, int scancode)
 {
 #if GLFW_HAS_GETKEYNAME && !defined(EMSCRIPTEN_USE_EMBEDDED_GLFW3)
@@ -403,6 +449,11 @@ static int ImGui_ImplGlfw_TranslateUntranslatedKey(int key, int scancode)
     return key;
 }
 
+/**
+ * @brief Handles GLFW key press and release events, updating ImGui input state.
+ *
+ * Translates GLFW key events to ImGui key events, updates modifier keys, and supports chaining to user-installed callbacks if present.
+ */
 void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int keycode, int scancode, int action, int mods)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -422,6 +473,11 @@ void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int keycode, int scancode, i
     io.SetKeyEventNativeData(imgui_key, keycode, scancode); // To support legacy indexing (<1.87 user code)
 }
 
+/**
+ * @brief Handles GLFW window focus events and updates ImGui focus state.
+ *
+ * Chains to any previously installed user window focus callback if applicable, then notifies ImGui of the window's focus change.
+ */
 void ImGui_ImplGlfw_WindowFocusCallback(GLFWwindow* window, int focused)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -432,6 +488,11 @@ void ImGui_ImplGlfw_WindowFocusCallback(GLFWwindow* window, int focused)
     io.AddFocusEvent(focused != 0);
 }
 
+/**
+ * @brief Handles GLFW cursor position events and updates ImGui with the new mouse position.
+ *
+ * Chains to any previously installed user cursor position callback if applicable, then reports the new cursor position to ImGui and updates the backend's last valid mouse position.
+ */
 void ImGui_ImplGlfw_CursorPosCallback(GLFWwindow* window, double x, double y)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -444,7 +505,11 @@ void ImGui_ImplGlfw_CursorPosCallback(GLFWwindow* window, double x, double y)
 }
 
 // Workaround: X11 seems to send spurious Leave/Enter events which would make us lose our position,
-// so we back it up and restore on Leave/Enter (see https://github.com/ocornut/imgui/issues/4984)
+/**
+ * @brief Handles GLFW cursor enter and leave events for ImGui.
+ *
+ * Updates ImGui's mouse position state when the cursor enters or leaves the window, restoring or invalidating the last known mouse position as appropriate. Chains to any previously installed user callback if configured.
+ */
 void ImGui_ImplGlfw_CursorEnterCallback(GLFWwindow* window, int entered)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -465,6 +530,11 @@ void ImGui_ImplGlfw_CursorEnterCallback(GLFWwindow* window, int entered)
     }
 }
 
+/**
+ * @brief Handles GLFW character input events and forwards them to ImGui.
+ *
+ * Adds the received Unicode character to ImGui's input queue for text input processing. If user callback chaining is enabled, also calls the previous user-installed character callback.
+ */
 void ImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned int c)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -475,12 +545,24 @@ void ImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned int c)
     io.AddInputCharacter(c);
 }
 
+/**
+ * @brief Placeholder for GLFW monitor event callback.
+ *
+ * Declared for compatibility with future ImGui docking branch features that may require monitor event handling. Currently unused.
+ */
 void ImGui_ImplGlfw_MonitorCallback(GLFWmonitor*, int)
 {
     // Unused in 'master' branch but 'docking' branch will use this, so we declare it ahead of it so if you have to install callbacks you can install this one too.
 }
 
 #ifdef EMSCRIPTEN_USE_EMBEDDED_GLFW3
+/**
+ * @brief Handles Emscripten wheel events and forwards them to ImGui as mouse wheel input.
+ *
+ * Converts Emscripten wheel event deltas to ImGui mouse wheel steps, accounting for the event's delta mode, and updates ImGui's input state accordingly.
+ *
+ * @return EM_BOOL Always returns EM_TRUE to indicate the event was handled.
+ */
 static EM_BOOL ImGui_ImplEmscripten_WheelCallback(int, const EmscriptenWheelEvent* ev, void*)
 {
     // Mimic Emscripten_HandleWheel() in SDL.
@@ -500,7 +582,13 @@ static EM_BOOL ImGui_ImplEmscripten_WheelCallback(int, const EmscriptenWheelEven
 
 #ifdef _WIN32
 // GLFW doesn't allow to distinguish Mouse vs TouchScreen vs Pen.
-// Add support for Win32 (based on imgui_impl_win32), because we rely on _TouchScreen info to trickle inputs differently.
+/**
+ * @brief Determines the mouse input source from the Windows message extra info.
+ *
+ * Inspects the extra information in the current Windows message to identify whether the input originated from a mouse, touchscreen, or pen device.
+ *
+ * @return ImGuiMouseSource The detected input source: mouse, touchscreen, or pen.
+ */
 static ImGuiMouseSource GetMouseSourceFromMessageExtraInfo()
 {
     LPARAM extra_info = ::GetMessageExtraInfo();
@@ -510,6 +598,13 @@ static ImGuiMouseSource GetMouseSourceFromMessageExtraInfo()
         return ImGuiMouseSource_TouchScreen;
     return ImGuiMouseSource_Mouse;
 }
+/**
+ * @brief Windows message procedure hook for distinguishing mouse input sources.
+ *
+ * Intercepts mouse-related window messages to identify the source of mouse input (mouse, touchscreen, or pen) and reports it to ImGui. Forwards all messages to the previously installed window procedure.
+ *
+ * @return LRESULT Result of the previous window procedure.
+ */
 static LRESULT CALLBACK ImGui_ImplGlfw_WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -527,6 +622,11 @@ static LRESULT CALLBACK ImGui_ImplGlfw_WndProc(HWND hWnd, UINT msg, WPARAM wPara
 }
 #endif
 
+/**
+ * @brief Installs GLFW input and window event callbacks for ImGui integration.
+ *
+ * Saves any previously installed user callbacks for later restoration and sets ImGui-specific callbacks for window focus, cursor, mouse, scroll, keyboard, character input, and monitor events on the specified GLFW window.
+ */
 void ImGui_ImplGlfw_InstallCallbacks(GLFWwindow* window)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -544,6 +644,11 @@ void ImGui_ImplGlfw_InstallCallbacks(GLFWwindow* window)
     bd->InstalledCallbacks = true;
 }
 
+/**
+ * @brief Restores previously saved GLFW user callbacks for the specified window.
+ *
+ * Reinstates the original user-installed GLFW callbacks that were replaced by the ImGui backend, and clears the backend's callback state.
+ */
 void ImGui_ImplGlfw_RestoreCallbacks(GLFWwindow* window)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -572,7 +677,13 @@ void ImGui_ImplGlfw_RestoreCallbacks(GLFWwindow* window)
 // Set to 'true' to enable chaining installed callbacks for all windows (including secondary viewports created by backends or by user.
 // This is 'false' by default meaning we only chain callbacks for the main viewport.
 // We cannot set this to 'true' by default because user callbacks code may be not testing the 'window' parameter of their callback.
-// If you set this to 'true' your user callback code will need to make sure you are testing the 'window' parameter.
+/**
+ * @brief Configures whether GLFW callback chaining applies to all windows or only the main window.
+ *
+ * When enabled, user-installed GLFW callbacks will be chained for all GLFW windows managed by the backend. Otherwise, chaining is limited to the main window.
+ *
+ * @param chain_for_all_windows Set to true to enable callback chaining for all windows; false to restrict to the main window only.
+ */
 void ImGui_ImplGlfw_SetCallbacksChainForAllWindows(bool chain_for_all_windows)
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -581,12 +692,27 @@ void ImGui_ImplGlfw_SetCallbacksChainForAllWindows(bool chain_for_all_windows)
 
 #ifdef __EMSCRIPTEN__
 #if EMSCRIPTEN_USE_PORT_CONTRIB_GLFW3 >= 34020240817
+/**
+ * @brief Opens the specified URL in a new browser tab or window when running under Emscripten.
+ *
+ * @param url The URL to open. If null, the function does nothing.
+ */
 void ImGui_ImplGlfw_EmscriptenOpenURL(const char* url) { if (url) emscripten::glfw3::OpenURL(url); }
 #else
 EM_JS(void, ImGui_ImplGlfw_EmscriptenOpenURL, (const char* url), { url = url ? UTF8ToString(url) : null; if (url) window.open(url, '_blank'); });
 #endif
 #endif
 
+/**
+ * @brief Initializes the Dear ImGui platform backend for a GLFW window.
+ *
+ * Sets up backend state, configures ImGui IO platform flags, installs clipboard handlers, creates standard mouse cursors, and optionally installs GLFW input callbacks. Also sets platform-specific handles for the main viewport and applies platform-specific workarounds for Windows and Emscripten environments.
+ *
+ * @param window Pointer to the GLFW window to be used by ImGui.
+ * @param install_callbacks If true, installs ImGui's input callbacks for the window.
+ * @param client_api Specifies the graphics API in use (e.g., OpenGL, Vulkan).
+ * @return true on successful initialization.
+ */
 static bool ImGui_ImplGlfw_Init(GLFWwindow* window, bool install_callbacks, GlfwClientApi client_api)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -687,21 +813,53 @@ static bool ImGui_ImplGlfw_Init(GLFWwindow* window, bool install_callbacks, Glfw
     return true;
 }
 
+/**
+ * @brief Initializes the Dear ImGui GLFW backend for use with an OpenGL context.
+ *
+ * Sets up input handling, clipboard support, and optional GLFW callback installation for a specified window using the OpenGL client API.
+ *
+ * @param window Pointer to the GLFW window to associate with ImGui.
+ * @param install_callbacks If true, installs input and window event callbacks for ImGui.
+ * @return true if initialization succeeds, false otherwise.
+ */
 bool ImGui_ImplGlfw_InitForOpenGL(GLFWwindow* window, bool install_callbacks)
 {
     return ImGui_ImplGlfw_Init(window, install_callbacks, GlfwClientApi_OpenGL);
 }
 
+/**
+ * @brief Initializes the Dear ImGui GLFW backend for use with Vulkan.
+ *
+ * Sets up input handling, clipboard support, and optional GLFW callback installation for a Vulkan-based application window.
+ *
+ * @param window Pointer to the GLFW window to associate with ImGui.
+ * @param install_callbacks If true, installs input and window event callbacks on the GLFW window.
+ * @return true if initialization succeeds, false otherwise.
+ */
 bool ImGui_ImplGlfw_InitForVulkan(GLFWwindow* window, bool install_callbacks)
 {
     return ImGui_ImplGlfw_Init(window, install_callbacks, GlfwClientApi_Vulkan);
 }
 
+/**
+ * @brief Initializes the Dear ImGui GLFW backend for an unknown or custom client API.
+ *
+ * Sets up ImGui integration with the specified GLFW window, optionally installing input callbacks. Use this when the client API is neither OpenGL nor Vulkan.
+ *
+ * @param window Pointer to the GLFW window to associate with ImGui.
+ * @param install_callbacks If true, installs input event callbacks on the window.
+ * @return true on successful initialization, false otherwise.
+ */
 bool ImGui_ImplGlfw_InitForOther(GLFWwindow* window, bool install_callbacks)
 {
     return ImGui_ImplGlfw_Init(window, install_callbacks, GlfwClientApi_Unknown);
 }
 
+/**
+ * @brief Shuts down the Dear ImGui GLFW platform backend and releases all associated resources.
+ *
+ * Restores any previously installed GLFW callbacks, destroys created mouse cursors, removes platform-specific hooks (such as Windows WndProc and Emscripten wheel callbacks), clears ImGui IO backend platform data, and deletes the backend state.
+ */
 void ImGui_ImplGlfw_Shutdown()
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -731,6 +889,11 @@ void ImGui_ImplGlfw_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Updates ImGui's mouse position state from the GLFW window.
+ *
+ * If the window is focused, updates the mouse position in ImGui's input system using the current GLFW cursor position. If ImGui requests to set the OS mouse position, moves the OS cursor accordingly. This function ensures ImGui's mouse state remains synchronized with the GLFW window, especially when the mouse is not captured or hovered.
+ */
 static void ImGui_ImplGlfw_UpdateMouseData()
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
@@ -762,6 +925,12 @@ static void ImGui_ImplGlfw_UpdateMouseData()
     }
 }
 
+/**
+ * @brief Updates the OS mouse cursor shape and visibility to match ImGui's current cursor state.
+ *
+ * Hides the OS cursor if ImGui is drawing its own or requests no cursor; otherwise, sets the OS cursor to the shape requested by ImGui.
+ * Does nothing if cursor changes are disabled or the GLFW cursor is in disabled mode.
+ */
 static void ImGui_ImplGlfw_UpdateMouseCursor()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -788,8 +957,18 @@ static void ImGui_ImplGlfw_UpdateMouseCursor()
     }
 }
 
-// Update gamepad inputs
+/**
+ * @brief Clamps a floating-point value to the range [0.0f, 1.0f].
+ *
+ * @param v The value to clamp.
+ * @return float The clamped value within the range [0.0f, 1.0f].
+ */
 static inline float Saturate(float v) { return v < 0.0f ? 0.0f : v  > 1.0f ? 1.0f : v; }
+/**
+ * @brief Updates ImGui gamepad input state from the first connected GLFW joystick or gamepad.
+ *
+ * Polls the state of the first gamepad or joystick using GLFW APIs and maps button and analog axis values to ImGui gamepad keys and analog inputs. Sets the backend flag indicating gamepad presence if input is detected. No action is taken if gamepad navigation is disabled in ImGui configuration.
+ */
 static void ImGui_ImplGlfw_UpdateGamepads()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -843,7 +1022,15 @@ static void ImGui_ImplGlfw_UpdateGamepads()
 
 // - On Windows the process needs to be marked DPI-aware!! SDL2 doesn't do it by default. You can call ::SetProcessDPIAware() or call ImGui_ImplWin32_EnableDpiAwareness() from Win32 backend.
 // - Apple platforms use FramebufferScale so we always return 1.0f.
-// - Some accessibility applications are declaring virtual monitors with a DPI of 0.0f, see #7902. We preserve this value for caller to handle.
+/**
+ * @brief Retrieves the horizontal content scale (DPI scaling factor) for a given GLFW window.
+ *
+ * Returns the window's content scale as reported by GLFW, or 1.0f if per-monitor DPI is not supported on the current platform.
+ * On some systems, the returned value may be 0.0f if the monitor reports an invalid DPI.
+ *
+ * @param window Pointer to the GLFW window.
+ * @return float The horizontal content scale factor for the window.
+ */
 float ImGui_ImplGlfw_GetContentScaleForWindow(GLFWwindow* window)
 {
 #if GLFW_HAS_PER_MONITOR_DPI && !defined(__APPLE__)
@@ -856,6 +1043,14 @@ float ImGui_ImplGlfw_GetContentScaleForWindow(GLFWwindow* window)
 #endif
 }
 
+/**
+ * @brief Returns the DPI scaling factor for the specified monitor.
+ *
+ * On platforms and GLFW versions supporting per-monitor DPI, retrieves the horizontal content scale for the given monitor. Returns 1.0f if unsupported or on Apple platforms.
+ *
+ * @param monitor Pointer to the GLFW monitor.
+ * @return float Horizontal content scale factor for the monitor.
+ */
 float ImGui_ImplGlfw_GetContentScaleForMonitor(GLFWmonitor* monitor)
 {
 #if GLFW_HAS_PER_MONITOR_DPI && !defined(__APPLE__)
@@ -868,6 +1063,15 @@ float ImGui_ImplGlfw_GetContentScaleForMonitor(GLFWmonitor* monitor)
 #endif
 }
 
+/**
+ * @brief Retrieves the window size and framebuffer scale for a GLFW window.
+ *
+ * Populates the provided output parameters with the logical window size and the ratio between framebuffer and window size, which reflects DPI scaling.
+ *
+ * @param window Pointer to the GLFW window.
+ * @param out_size If not null, receives the window size in screen coordinates.
+ * @param out_framebuffer_scale If not null, receives the framebuffer scale as (framebuffer size / window size).
+ */
 static void ImGui_ImplGlfw_GetWindowSizeAndFramebufferScale(GLFWwindow* window, ImVec2* out_size, ImVec2* out_framebuffer_scale)
 {
     int w, h;
@@ -880,6 +1084,11 @@ static void ImGui_ImplGlfw_GetWindowSizeAndFramebufferScale(GLFWwindow* window, 
         *out_framebuffer_scale = (w > 0 && h > 0) ? ImVec2((float)display_w / (float)w, (float)display_h / (float)h) : ImVec2(1.0f, 1.0f);
 }
 
+/**
+ * @brief Prepares Dear ImGui for a new frame using GLFW backend data.
+ *
+ * Updates display size, framebuffer scale, and delta time from the GLFW window. Refreshes mouse position, cursor state, and gamepad input for the current frame.
+ */
 void ImGui_ImplGlfw_NewFrame()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -904,7 +1113,13 @@ void ImGui_ImplGlfw_NewFrame()
     ImGui_ImplGlfw_UpdateGamepads();
 }
 
-// GLFW doesn't provide a portable sleep function
+/**
+ * @brief Suspends execution for a specified number of milliseconds.
+ *
+ * Provides a cross-platform sleep function using Sleep() on Windows and usleep() on other platforms.
+ *
+ * @param milliseconds Duration to sleep, in milliseconds.
+ */
 void ImGui_ImplGlfw_Sleep(int milliseconds)
 {
 #ifdef _WIN32
@@ -915,6 +1130,13 @@ void ImGui_ImplGlfw_Sleep(int milliseconds)
 }
 
 #ifdef EMSCRIPTEN_USE_EMBEDDED_GLFW3
+/**
+ * @brief Handles Emscripten canvas size change events by resizing the associated GLFW window.
+ *
+ * Adjusts the GLFW window size to match the new CSS size of the HTML canvas element when a resize event occurs in an Emscripten environment.
+ *
+ * @return Always returns true to indicate the event was handled.
+ */
 static EM_BOOL ImGui_ImplGlfw_OnCanvasSizeChange(int event_type, const EmscriptenUiEvent* event, void* user_data)
 {
     ImGui_ImplGlfw_Data* bd = (ImGui_ImplGlfw_Data*)user_data;
@@ -924,6 +1146,13 @@ static EM_BOOL ImGui_ImplGlfw_OnCanvasSizeChange(int event_type, const Emscripte
     return true;
 }
 
+/**
+ * @brief Handles Emscripten fullscreen change events to resize the GLFW window.
+ *
+ * Adjusts the GLFW window size to match the CSS size of the canvas when entering or exiting fullscreen mode in Emscripten.
+ *
+ * @return Always returns true to indicate the event was handled.
+ */
 static EM_BOOL ImGui_ImplEmscripten_FullscreenChangeCallback(int event_type, const EmscriptenFullscreenChangeEvent* event, void* user_data)
 {
     ImGui_ImplGlfw_Data* bd = (ImGui_ImplGlfw_Data*)user_data;
@@ -934,7 +1163,13 @@ static EM_BOOL ImGui_ImplEmscripten_FullscreenChangeCallback(int event_type, con
 }
 
 // 'canvas_selector' is a CSS selector. The event listener is applied to the first element that matches the query.
-// STRING MUST PERSIST FOR THE APPLICATION DURATION. PLEASE USE A STRING LITERAL OR ENSURE POINTER WILL STAY VALID.
+/**
+ * @brief Installs Emscripten-specific callbacks for canvas resizing, fullscreen changes, and mouse wheel events.
+ *
+ * Sets up Emscripten event callbacks to synchronize the GLFW window size with the HTML canvas, handle fullscreen transitions, and process mouse wheel input for Dear ImGui integration in Emscripten environments.
+ *
+ * @param canvas_selector CSS selector string identifying the HTML canvas element. The string must remain valid for the application's lifetime.
+ */
 void ImGui_ImplGlfw_InstallEmscriptenCallbacks(GLFWwindow*, const char* canvas_selector)
 {
     IM_ASSERT(canvas_selector != nullptr);
@@ -956,7 +1191,14 @@ void ImGui_ImplGlfw_InstallEmscriptenCallbacks(GLFWwindow*, const char* canvas_s
 #elif defined(EMSCRIPTEN_USE_PORT_CONTRIB_GLFW3)
 // When using --use-port=contrib.glfw3 for the GLFW implementation, you can override the behavior of this call
 // by invoking emscripten_glfw_make_canvas_resizable afterward.
-// See https://github.com/pongasoft/emscripten-glfw/blob/master/docs/Usage.md#how-to-make-the-canvas-resizable-by-the-user for an explanation
+/**
+ * @brief Installs Emscripten-specific callbacks to enable user-resizable canvas for a GLFW window.
+ *
+ * This function configures the specified GLFW window's canvas to be resizable by the user in Emscripten/WebAssembly builds, using the provided canvas selector.
+ *
+ * @param window Pointer to the GLFW window to configure.
+ * @param canvas_selector CSS selector string identifying the HTML canvas element.
+ */
 void ImGui_ImplGlfw_InstallEmscriptenCallbacks(GLFWwindow* window, const char* canvas_selector)
 {
   GLFWwindow* w = (GLFWwindow*)(EM_ASM_INT({ return Module.glfwGetWindow(UTF8ToString($0)); }, canvas_selector));

@@ -236,7 +236,10 @@ struct ImGui_ImplVulkan_Texture
     VkImageView                 ImageView;
     VkDescriptorSet             DescriptorSet;
 
-    ImGui_ImplVulkan_Texture() { memset((void*)this, 0, sizeof(*this)); }
+    /**
+ * @brief Constructs an ImGui_ImplVulkan_Texture and initializes all members to zero.
+ */
+ImGui_ImplVulkan_Texture() { memset((void*)this, 0, sizeof(*this)); }
 };
 
 // Vulkan data
@@ -260,6 +263,11 @@ struct ImGui_ImplVulkan_Data
     // Render buffers for main window
     ImGui_ImplVulkan_WindowRenderBuffers MainWindowRenderBuffers;
 
+    /**
+     * @brief Constructs and initializes the Vulkan backend data structure with default values.
+     *
+     * All members are zero-initialized, and buffer memory alignment is set to 256 bytes.
+     */
     ImGui_ImplVulkan_Data()
     {
         memset((void*)this, 0, sizeof(*this));
@@ -382,12 +390,23 @@ static uint32_t __glsl_shader_frag_spv[] =
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
 // It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
-// FIXME: multi-context support is not tested and probably dysfunctional in this backend.
+/**
+ * @brief Retrieves the Vulkan backend data for the current ImGui context.
+ *
+ * @return Pointer to the Vulkan backend data if a context is active, or nullptr otherwise.
+ */
 static ImGui_ImplVulkan_Data* ImGui_ImplVulkan_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplVulkan_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
 }
 
+/**
+ * @brief Finds a suitable Vulkan memory type index matching the requested properties and type bits.
+ *
+ * @param properties Required memory property flags (e.g., host visible, device local).
+ * @param type_bits Bitmask of acceptable memory types.
+ * @return uint32_t Index of the matching memory type, or 0xFFFFFFFF if none found.
+ */
 static uint32_t ImGui_ImplVulkan_MemoryType(VkMemoryPropertyFlags properties, uint32_t type_bits)
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -400,6 +419,11 @@ static uint32_t ImGui_ImplVulkan_MemoryType(VkMemoryPropertyFlags properties, ui
     return 0xFFFFFFFF; // Unable to find memoryType
 }
 
+/**
+ * @brief Invokes the user-provided Vulkan error callback if set.
+ *
+ * Calls the registered Vulkan error handling function with the provided VkResult error code, if available.
+ */
 static void check_vk_result(VkResult err)
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -410,12 +434,31 @@ static void check_vk_result(VkResult err)
         v->CheckVkResultFn(err);
 }
 
-// Same as IM_MEMALIGN(). 'alignment' must be a power of two.
+/**
+ * @brief Aligns a buffer size to the specified alignment.
+ *
+ * Returns the smallest multiple of `alignment` greater than or equal to `size`. The `alignment` must be a power of two.
+ *
+ * @param size The original buffer size.
+ * @param alignment The alignment boundary (must be a power of two).
+ * @return VkDeviceSize The aligned buffer size.
+ */
 static inline VkDeviceSize AlignBufferSize(VkDeviceSize size, VkDeviceSize alignment)
 {
     return (size + alignment - 1) & ~(alignment - 1);
 }
 
+/**
+ * @brief Creates or resizes a Vulkan buffer and allocates memory with proper alignment and usage.
+ *
+ * Destroys any existing buffer and memory, then creates a new buffer of at least the requested size, aligned as required. Allocates and binds host-visible memory suitable for the buffer's usage.
+ *
+ * @param buffer Reference to the Vulkan buffer handle to create or resize.
+ * @param buffer_memory Reference to the Vulkan device memory handle to allocate or reallocate.
+ * @param buffer_size Reference to the current buffer size, updated to the new aligned size.
+ * @param new_size Minimum required size for the buffer.
+ * @param usage Buffer usage flags specifying intended usage (e.g., vertex or index buffer).
+ */
 static void CreateOrResizeBuffer(VkBuffer& buffer, VkDeviceMemory& buffer_memory, VkDeviceSize& buffer_size, VkDeviceSize new_size, VkBufferUsageFlagBits usage)
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -450,6 +493,18 @@ static void CreateOrResizeBuffer(VkBuffer& buffer, VkDeviceMemory& buffer_memory
     buffer_size = buffer_size_aligned;
 }
 
+/**
+ * @brief Configures Vulkan render state for rendering ImGui draw data.
+ *
+ * Binds the graphics pipeline, vertex and index buffers, sets the viewport, and pushes scale and translation constants for the vertex shader based on the current framebuffer and ImGui draw data.
+ *
+ * @param draw_data ImGui draw data to be rendered.
+ * @param pipeline Vulkan graphics pipeline to bind.
+ * @param command_buffer Command buffer to record rendering commands.
+ * @param rb Frame render buffers containing vertex and index buffers.
+ * @param fb_width Width of the framebuffer in pixels.
+ * @param fb_height Height of the framebuffer in pixels.
+ */
 static void ImGui_ImplVulkan_SetupRenderState(ImDrawData* draw_data, VkPipeline pipeline, VkCommandBuffer command_buffer, ImGui_ImplVulkan_FrameRenderBuffers* rb, int fb_width, int fb_height)
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -494,7 +549,15 @@ static void ImGui_ImplVulkan_SetupRenderState(ImDrawData* draw_data, VkPipeline 
     }
 }
 
-// Render function
+/**
+ * @brief Renders ImGui draw data using Vulkan.
+ *
+ * Processes ImDrawData and issues Vulkan commands to render ImGui's UI elements. Handles dynamic texture updates, buffer allocation and uploads, render state setup, scissor/clipping, descriptor set binding, and draw calls. Supports user callbacks and resets scissor to the full viewport at the end to avoid state leakage.
+ *
+ * @param draw_data ImGui draw data to render.
+ * @param command_buffer Vulkan command buffer to record rendering commands.
+ * @param pipeline Vulkan graphics pipeline to use; if null, the default pipeline is used.
+ */
 void ImGui_ImplVulkan_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer command_buffer, VkPipeline pipeline)
 {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
@@ -646,6 +709,11 @@ void ImGui_ImplVulkan_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer comm
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 }
 
+/**
+ * @brief Destroys a Vulkan texture and releases all associated resources.
+ *
+ * Frees the Vulkan image, image view, and memory associated with the texture, removes its descriptor set, and clears texture identifiers and backend data.
+ */
 static void ImGui_ImplVulkan_DestroyTexture(ImTextureData* tex)
 {
     ImGui_ImplVulkan_Texture* backend_tex = (ImGui_ImplVulkan_Texture*)tex->BackendUserData;
@@ -666,6 +734,13 @@ static void ImGui_ImplVulkan_DestroyTexture(ImTextureData* tex)
     tex->BackendUserData = nullptr;
 }
 
+/**
+ * @brief Creates, updates, or destroys a Vulkan texture based on the status of the provided ImTextureData.
+ *
+ * If the texture is marked for creation, allocates and initializes a Vulkan image, image view, and descriptor set, then uploads pixel data. If marked for update, uploads new pixel data to the specified region of the texture. If marked for destruction and unused for enough frames, destroys the Vulkan resources associated with the texture.
+ *
+ * @param tex Pointer to the ImTextureData structure describing the texture to update.
+ */
 void ImGui_ImplVulkan_UpdateTexture(ImTextureData* tex)
 {
     if (tex->Status == ImTextureStatus_OK)
@@ -864,6 +939,11 @@ void ImGui_ImplVulkan_UpdateTexture(ImTextureData* tex)
         ImGui_ImplVulkan_DestroyTexture(tex);
 }
 
+/**
+ * @brief Creates Vulkan shader modules for the vertex and fragment shaders used by the ImGui renderer backend.
+ *
+ * If the shader modules do not already exist, this function creates them using embedded SPIR-V bytecode and stores them in the backend data.
+ */
 static void ImGui_ImplVulkan_CreateShaderModules(VkDevice device, const VkAllocationCallbacks* allocator)
 {
     // Create the shader modules
@@ -888,6 +968,19 @@ static void ImGui_ImplVulkan_CreateShaderModules(VkDevice device, const VkAlloca
     }
 }
 
+/**
+ * @brief Creates a Vulkan graphics pipeline for rendering Dear ImGui draw data.
+ *
+ * Configures and creates a graphics pipeline with appropriate shader stages, vertex input, blending, multisampling, and dynamic state for ImGui rendering. Supports both traditional render passes and dynamic rendering if enabled.
+ *
+ * @param device Vulkan logical device.
+ * @param allocator Optional Vulkan allocation callbacks.
+ * @param pipelineCache Pipeline cache object, or VK_NULL_HANDLE.
+ * @param renderPass Vulkan render pass to use, or VK_NULL_HANDLE if using dynamic rendering.
+ * @param MSAASamples Number of MSAA samples to use.
+ * @param pipeline Pointer to the created pipeline handle.
+ * @param subpass Subpass index within the render pass.
+ */
 static void ImGui_ImplVulkan_CreatePipeline(VkDevice device, const VkAllocationCallbacks* allocator, VkPipelineCache pipelineCache, VkRenderPass renderPass, VkSampleCountFlagBits MSAASamples, VkPipeline* pipeline, uint32_t subpass)
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -1003,6 +1096,13 @@ static void ImGui_ImplVulkan_CreatePipeline(VkDevice device, const VkAllocationC
     check_vk_result(err);
 }
 
+/**
+ * @brief Creates Vulkan device objects required for the ImGui renderer backend.
+ *
+ * Initializes and creates the Vulkan sampler, descriptor set layout, descriptor pool, pipeline layout, graphics pipeline, and command pool/buffer used for texture uploads if they do not already exist.
+ *
+ * @return true if device objects are successfully created.
+ */
 bool ImGui_ImplVulkan_CreateDeviceObjects()
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -1099,6 +1199,11 @@ bool ImGui_ImplVulkan_CreateDeviceObjects()
     return true;
 }
 
+/**
+ * @brief Destroys all Vulkan device objects created by the ImGui Vulkan backend.
+ *
+ * Releases Vulkan resources including textures, buffers, samplers, shader modules, descriptor sets, pipelines, command pools, and descriptor pools associated with the backend. This function should be called during shutdown or when device objects need to be recreated.
+ */
 void    ImGui_ImplVulkan_DestroyDeviceObjects()
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -1122,6 +1227,14 @@ void    ImGui_ImplVulkan_DestroyDeviceObjects()
 }
 
 #ifdef IMGUI_IMPL_VULKAN_HAS_DYNAMIC_RENDERING
+/**
+ * @brief Loads Vulkan dynamic rendering function pointers for use by the backend.
+ *
+ * Attempts to load core dynamic rendering functions (`vkCmdBeginRendering`, `vkCmdEndRendering`) first, and falls back to KHR extension versions if necessary.
+ *
+ * @param loader_func Callback function to load Vulkan function pointers by name.
+ * @param user_data User data passed to the loader callback.
+ */
 static void ImGui_ImplVulkan_LoadDynamicRenderingFunctions(uint32_t api_version, PFN_vkVoidFunction(*loader_func)(const char* function_name, void* user_data), void* user_data)
 {
     IM_UNUSED(api_version);
@@ -1141,7 +1254,13 @@ static void ImGui_ImplVulkan_LoadDynamicRenderingFunctions(uint32_t api_version,
 #endif
 
 // If unspecified by user, assume that ApiVersion == HeaderVersion
- // We don't care about other versions than 1.3 for our checks, so don't need to make this exhaustive (e.g. with all #ifdef VK_VERSION_1_X checks)
+ /**
+ * @brief Returns the default Vulkan API version used by the backend.
+ *
+ * Uses VK_HEADER_VERSION_COMPLETE if available; otherwise, defaults to VK_API_VERSION_1_0.
+ *
+ * @return uint32_t Vulkan API version.
+ */
 static uint32_t ImGui_ImplVulkan_GetDefaultApiVersion()
 {
 #ifdef VK_HEADER_VERSION_COMPLETE
@@ -1151,6 +1270,16 @@ static uint32_t ImGui_ImplVulkan_GetDefaultApiVersion()
 #endif
 }
 
+/**
+ * @brief Loads Vulkan function pointers required by the ImGui Vulkan backend.
+ *
+ * Uses a user-provided loader callback to resolve Vulkan function addresses, enabling dynamic function loading when prototypes are not statically linked. Also loads dynamic rendering functions if supported.
+ *
+ * @param api_version Vulkan API version to target. If zero, the backend's default version is used.
+ * @param loader_func Callback function to resolve Vulkan function addresses by name.
+ * @param user_data User data passed to the loader callback.
+ * @return true if all required functions are loaded successfully, false if any function could not be loaded.
+ */
 bool    ImGui_ImplVulkan_LoadFunctions(uint32_t api_version, PFN_vkVoidFunction(*loader_func)(const char* function_name, void* user_data), void* user_data)
 {
     // Load function pointers
@@ -1180,6 +1309,14 @@ bool    ImGui_ImplVulkan_LoadFunctions(uint32_t api_version, PFN_vkVoidFunction(
     return true;
 }
 
+/**
+ * @brief Initializes the Dear ImGui Vulkan renderer backend.
+ *
+ * Sets up the Vulkan renderer backend with the provided initialization information, validates required Vulkan handles and parameters, configures backend capabilities, and creates necessary Vulkan device objects for rendering. Must be called before using any other renderer functions.
+ *
+ * @param info Pointer to an ImGui_ImplVulkan_InitInfo structure containing Vulkan handles, device information, and backend configuration.
+ * @return true if initialization succeeds.
+ */
 bool    ImGui_ImplVulkan_Init(ImGui_ImplVulkan_InitInfo* info)
 {
     IM_ASSERT(g_FunctionsLoaded && "Need to call ImGui_ImplVulkan_LoadFunctions() if IMGUI_IMPL_VULKAN_NO_PROTOTYPES or VK_NO_PROTOTYPES are set!");
@@ -1241,6 +1378,11 @@ bool    ImGui_ImplVulkan_Init(ImGui_ImplVulkan_InitInfo* info)
     return true;
 }
 
+/**
+ * @brief Shuts down the Vulkan renderer backend for Dear ImGui and releases all associated resources.
+ *
+ * Destroys Vulkan device objects, frees dynamically allocated pipeline rendering formats if used, clears backend flags, and resets ImGui renderer backend pointers.
+ */
 void ImGui_ImplVulkan_Shutdown()
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -1258,6 +1400,11 @@ void ImGui_ImplVulkan_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Prepares the Vulkan backend for a new ImGui frame.
+ *
+ * Asserts that the Vulkan backend is initialized. Intended to be called at the start of each frame.
+ */
 void ImGui_ImplVulkan_NewFrame()
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -1265,6 +1412,13 @@ void ImGui_ImplVulkan_NewFrame()
     IM_UNUSED(bd);
 }
 
+/**
+ * @brief Sets the minimum number of images for the Vulkan swapchain and resets window render buffers.
+ *
+ * Waits for the device to become idle, destroys existing window render buffers, and updates the minimum image count used for swapchain creation.
+ *
+ * @param min_image_count The new minimum number of images; must be at least 2.
+ */
 void ImGui_ImplVulkan_SetMinImageCount(uint32_t min_image_count)
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -1280,7 +1434,16 @@ void ImGui_ImplVulkan_SetMinImageCount(uint32_t min_image_count)
 }
 
 // Register a texture by creating a descriptor
-// FIXME: This is experimental in the sense that we are unsure how to best design/tackle this problem, please post to https://github.com/ocornut/imgui/pull/914 if you have suggestions.
+/**
+ * @brief Allocates and updates a Vulkan descriptor set for a combined image sampler.
+ *
+ * Creates a descriptor set for the provided sampler, image view, and image layout, allowing the texture to be used in ImGui rendering.
+ *
+ * @param sampler Vulkan sampler to use for the texture.
+ * @param image_view Vulkan image view representing the texture.
+ * @param image_layout Layout of the image when accessed by the shader.
+ * @return VkDescriptorSet The allocated and updated descriptor set for use with ImGui.
+ */
 VkDescriptorSet ImGui_ImplVulkan_AddTexture(VkSampler sampler, VkImageView image_view, VkImageLayout image_layout)
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -1316,6 +1479,13 @@ VkDescriptorSet ImGui_ImplVulkan_AddTexture(VkSampler sampler, VkImageView image
     return descriptor_set;
 }
 
+/**
+ * @brief Releases a Vulkan descriptor set used for an ImGui texture.
+ *
+ * Frees the specified descriptor set from the Vulkan descriptor pool, making it available for reuse.
+ *
+ * @param descriptor_set The Vulkan descriptor set to be released.
+ */
 void ImGui_ImplVulkan_RemoveTexture(VkDescriptorSet descriptor_set)
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
@@ -1324,6 +1494,11 @@ void ImGui_ImplVulkan_RemoveTexture(VkDescriptorSet descriptor_set)
     vkFreeDescriptorSets(v->Device, pool, 1, &descriptor_set);
 }
 
+/**
+ * @brief Destroys the vertex and index buffers and frees associated memory for a single frame's render buffers.
+ *
+ * Releases Vulkan buffer and memory resources used for rendering a frame, resetting buffer handles and sizes.
+ */
 void ImGui_ImplVulkan_DestroyFrameRenderBuffers(VkDevice device, ImGui_ImplVulkan_FrameRenderBuffers* buffers, const VkAllocationCallbacks* allocator)
 {
     if (buffers->VertexBuffer) { vkDestroyBuffer(device, buffers->VertexBuffer, allocator); buffers->VertexBuffer = VK_NULL_HANDLE; }
@@ -1334,6 +1509,11 @@ void ImGui_ImplVulkan_DestroyFrameRenderBuffers(VkDevice device, ImGui_ImplVulka
     buffers->IndexBufferSize = 0;
 }
 
+/**
+ * @brief Destroys all frame render buffers associated with a window and releases their resources.
+ *
+ * Frees Vulkan buffers and memory for each frame in the window's render buffers, clears the buffer array, and resets buffer indices.
+ */
 void ImGui_ImplVulkan_DestroyWindowRenderBuffers(VkDevice device, ImGui_ImplVulkan_WindowRenderBuffers* buffers, const VkAllocationCallbacks* allocator)
 {
     for (uint32_t n = 0; n < buffers->Count; n++)
@@ -1357,7 +1537,18 @@ void ImGui_ImplVulkan_DestroyWindowRenderBuffers(VkDevice device, ImGui_ImplVulk
 // Your engine/app will likely _already_ have code to setup all that stuff (swap chain, render pass, frame buffers, etc.).
 // You may read this code to learn about Vulkan, but it is recommended you use you own custom tailored code to do equivalent work.
 // (The ImGui_ImplVulkanH_XXX functions do not interact with any of the state used by the regular ImGui_ImplVulkan_XXX functions)
-//-------------------------------------------------------------------------
+/**
+ * @brief Selects a suitable Vulkan surface format for a swapchain.
+ *
+ * Chooses a VkSurfaceFormatKHR from the available formats on the given physical device and surface, prioritizing the requested formats and color space. If only VK_FORMAT_UNDEFINED is available, returns the first requested format and color space. Otherwise, returns the first matching format and color space, or falls back to the first available format if none match.
+ *
+ * @param physical_device Vulkan physical device to query.
+ * @param surface Vulkan surface to query.
+ * @param request_formats Array of preferred VkFormat values, ordered by priority.
+ * @param request_formats_count Number of formats in request_formats.
+ * @param request_color_space Desired VkColorSpaceKHR.
+ * @return VkSurfaceFormatKHR Selected surface format and color space.
+ */
 
 VkSurfaceFormatKHR ImGui_ImplVulkanH_SelectSurfaceFormat(VkPhysicalDevice physical_device, VkSurfaceKHR surface, const VkFormat* request_formats, int request_formats_count, VkColorSpaceKHR request_color_space)
 {
@@ -1404,6 +1595,17 @@ VkSurfaceFormatKHR ImGui_ImplVulkanH_SelectSurfaceFormat(VkPhysicalDevice physic
     }
 }
 
+/**
+ * @brief Selects a Vulkan present mode from a list of requested modes, falling back to FIFO if unavailable.
+ *
+ * Iterates through the requested present modes and returns the first one supported by the given physical device and surface. If none of the requested modes are available, returns `VK_PRESENT_MODE_FIFO_KHR`, which is guaranteed to be supported.
+ *
+ * @param physical_device Vulkan physical device to query.
+ * @param surface Vulkan surface to query present modes for.
+ * @param request_modes Array of preferred present modes, in order of preference.
+ * @param request_modes_count Number of present modes in the request array.
+ * @return VkPresentModeKHR The selected present mode.
+ */
 VkPresentModeKHR ImGui_ImplVulkanH_SelectPresentMode(VkPhysicalDevice physical_device, VkSurfaceKHR surface, const VkPresentModeKHR* request_modes, int request_modes_count)
 {
     IM_ASSERT(g_FunctionsLoaded && "Need to call ImGui_ImplVulkan_LoadFunctions() if IMGUI_IMPL_VULKAN_NO_PROTOTYPES or VK_NO_PROTOTYPES are set!");
@@ -1427,6 +1629,14 @@ VkPresentModeKHR ImGui_ImplVulkanH_SelectPresentMode(VkPhysicalDevice physical_d
     return VK_PRESENT_MODE_FIFO_KHR; // Always available
 }
 
+/**
+ * @brief Selects a suitable Vulkan physical device for rendering.
+ *
+ * Enumerates available physical devices for the given Vulkan instance and returns a discrete GPU if present; otherwise, returns the first available device.
+ *
+ * @param instance Vulkan instance to query for physical devices.
+ * @return VkPhysicalDevice Handle to the selected physical device, or VK_NULL_HANDLE if none are found.
+ */
 VkPhysicalDevice ImGui_ImplVulkanH_SelectPhysicalDevice(VkInstance instance)
 {
     uint32_t gpu_count;
@@ -1457,6 +1667,12 @@ VkPhysicalDevice ImGui_ImplVulkanH_SelectPhysicalDevice(VkInstance instance)
 }
 
 
+/**
+ * @brief Selects the first queue family index supporting graphics operations.
+ *
+ * @param physical_device Vulkan physical device to query.
+ * @return uint32_t Index of a queue family with VK_QUEUE_GRAPHICS_BIT, or (uint32_t)-1 if none found.
+ */
 uint32_t ImGui_ImplVulkanH_SelectQueueFamilyIndex(VkPhysicalDevice physical_device)
 {
     uint32_t count;
@@ -1470,6 +1686,11 @@ uint32_t ImGui_ImplVulkanH_SelectQueueFamilyIndex(VkPhysicalDevice physical_devi
     return (uint32_t)-1;
 }
 
+/**
+ * @brief Creates command pools, command buffers, fences, and semaphores for each frame in a Vulkan window.
+ *
+ * Initializes per-frame Vulkan resources required for rendering and synchronization, including command pools, primary command buffers, fences (initialized as signaled), and semaphores for image acquisition and render completion.
+ */
 void ImGui_ImplVulkanH_CreateWindowCommandBuffers(VkPhysicalDevice physical_device, VkDevice device, ImGui_ImplVulkanH_Window* wd, uint32_t queue_family, const VkAllocationCallbacks* allocator)
 {
     IM_ASSERT(physical_device != VK_NULL_HANDLE && device != VK_NULL_HANDLE);
@@ -1520,6 +1741,12 @@ void ImGui_ImplVulkanH_CreateWindowCommandBuffers(VkPhysicalDevice physical_devi
     }
 }
 
+/**
+ * @brief Returns the minimum image count required for a given Vulkan present mode.
+ *
+ * @param present_mode The Vulkan present mode.
+ * @return int The minimum number of images required for the specified present mode.
+ */
 int ImGui_ImplVulkanH_GetMinImageCountFromPresentMode(VkPresentModeKHR present_mode)
 {
     if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR)
@@ -1532,7 +1759,19 @@ int ImGui_ImplVulkanH_GetMinImageCountFromPresentMode(VkPresentModeKHR present_m
     return 1;
 }
 
-// Also destroy old swap chain and in-flight frames data, if any.
+/**
+ * @brief Creates or recreates the Vulkan swapchain and associated resources for a window.
+ *
+ * Destroys old framebuffers, semaphores, render pass, and pipeline as needed, then creates a new swapchain with the specified parameters. Initializes image views and, if not using dynamic rendering, creates a render pass and framebuffers for each swapchain image. Cleans up the old swapchain after the new one is created.
+ *
+ * @param physical_device Vulkan physical device used for querying surface capabilities.
+ * @param device Vulkan logical device used for resource creation.
+ * @param wd Pointer to the window data structure to initialize or update.
+ * @param allocator Optional Vulkan allocation callbacks.
+ * @param w Desired width of the swapchain images (used if surface extent is undefined).
+ * @param h Desired height of the swapchain images (used if surface extent is undefined).
+ * @param min_image_count Minimum number of swapchain images to request; if zero, selects based on present mode.
+ */
 void ImGui_ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice physical_device, VkDevice device, ImGui_ImplVulkanH_Window* wd, const VkAllocationCallbacks* allocator, int w, int h, uint32_t min_image_count)
 {
     VkResult err;
@@ -1699,7 +1938,16 @@ void ImGui_ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice physical_device, V
     }
 }
 
-// Create or resize window
+/**
+ * @brief Creates or resizes a Vulkan window's swapchain and associated resources.
+ *
+ * Initializes or resizes the swapchain, framebuffers, and command buffers for a Vulkan window, and transitions swapchain images to the present layout. This function must be called when the window is created or its size or minimum image count changes.
+ *
+ * @param wd Pointer to the window render data structure to initialize or resize.
+ * @param width New width of the window.
+ * @param height New height of the window.
+ * @param min_image_count Minimum number of images for the swapchain.
+ */
 void ImGui_ImplVulkanH_CreateOrResizeWindow(VkInstance instance, VkPhysicalDevice physical_device, VkDevice device, ImGui_ImplVulkanH_Window* wd, uint32_t queue_family, const VkAllocationCallbacks* allocator, int width, int height, uint32_t min_image_count)
 {
     IM_ASSERT(g_FunctionsLoaded && "Need to call ImGui_ImplVulkan_LoadFunctions() if IMGUI_IMPL_VULKAN_NO_PROTOTYPES or VK_NO_PROTOTYPES are set!");
@@ -1784,6 +2032,16 @@ void ImGui_ImplVulkanH_CreateOrResizeWindow(VkInstance instance, VkPhysicalDevic
     queue = VK_NULL_HANDLE;
 }
 
+/**
+ * @brief Destroys all Vulkan resources associated with a window.
+ *
+ * Cleans up swapchain, surface, pipeline, render pass, framebuffers, command buffers, semaphores, and resets the window structure.
+ *
+ * @param instance Vulkan instance used to create the surface.
+ * @param device Vulkan device used for resource allocation.
+ * @param wd Pointer to the window structure whose resources will be destroyed and reset.
+ * @param allocator Optional Vulkan allocation callbacks.
+ */
 void ImGui_ImplVulkanH_DestroyWindow(VkInstance instance, VkDevice device, ImGui_ImplVulkanH_Window* wd, const VkAllocationCallbacks* allocator)
 {
     vkDeviceWaitIdle(device); // FIXME: We could wait on the Queue if we had the queue in wd-> (otherwise VulkanH functions can't use globals)
@@ -1803,6 +2061,15 @@ void ImGui_ImplVulkanH_DestroyWindow(VkInstance instance, VkDevice device, ImGui
     *wd = ImGui_ImplVulkanH_Window();
 }
 
+/**
+ * @brief Destroys all Vulkan resources associated with a single frame.
+ *
+ * Releases the fence, command buffer, command pool, image view, and framebuffer for the specified frame.
+ *
+ * @param device Vulkan logical device.
+ * @param fd Pointer to the frame data structure whose resources will be destroyed.
+ * @param allocator Optional Vulkan allocation callbacks.
+ */
 void ImGui_ImplVulkanH_DestroyFrame(VkDevice device, ImGui_ImplVulkanH_Frame* fd, const VkAllocationCallbacks* allocator)
 {
     vkDestroyFence(device, fd->Fence, allocator);
@@ -1816,6 +2083,11 @@ void ImGui_ImplVulkanH_DestroyFrame(VkDevice device, ImGui_ImplVulkanH_Frame* fd
     vkDestroyFramebuffer(device, fd->Framebuffer, allocator);
 }
 
+/**
+ * @brief Destroys the semaphores used for image acquisition and render completion in a frame.
+ *
+ * Releases Vulkan semaphores associated with a frame and resets their handles to VK_NULL_HANDLE.
+ */
 void ImGui_ImplVulkanH_DestroyFrameSemaphores(VkDevice device, ImGui_ImplVulkanH_FrameSemaphores* fsd, const VkAllocationCallbacks* allocator)
 {
     vkDestroySemaphore(device, fsd->ImageAcquiredSemaphore, allocator);

@@ -55,17 +55,30 @@ struct ImGui_ImplSDLRenderer3_Data
     SDL_Renderer*           Renderer;       // Main viewport's renderer
     ImVector<SDL_FColor>    ColorBuffer;
 
-    ImGui_ImplSDLRenderer3_Data()   { memset((void*)this, 0, sizeof(*this)); }
+    /**
+ * @brief Constructs ImGui_ImplSDLRenderer3_Data and zero-initializes all members.
+ */
+ImGui_ImplSDLRenderer3_Data()   { memset((void*)this, 0, sizeof(*this)); }
 };
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
-// It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
+/**
+ * @brief Retrieves the backend-specific data for the SDL3 renderer.
+ *
+ * @return Pointer to the backend data if an ImGui context exists, or nullptr otherwise.
+ */
 static ImGui_ImplSDLRenderer3_Data* ImGui_ImplSDLRenderer3_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplSDLRenderer3_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
 }
 
-// Functions
+/**
+ * @brief Initializes the Dear ImGui SDL3 renderer backend with the specified SDL_Renderer.
+ *
+ * Associates the given SDL_Renderer with ImGui's backend data, sets backend flags for large mesh and texture support, and prepares the renderer for use with Dear ImGui.
+ *
+ * @return true if initialization succeeds.
+ */
 bool ImGui_ImplSDLRenderer3_Init(SDL_Renderer* renderer)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -85,6 +98,11 @@ bool ImGui_ImplSDLRenderer3_Init(SDL_Renderer* renderer)
     return true;
 }
 
+/**
+ * @brief Shuts down the SDL3 renderer backend for Dear ImGui and releases associated resources.
+ *
+ * Cleans up backend data, destroys device objects such as textures, and resets ImGui's renderer backend state.
+ */
 void ImGui_ImplSDLRenderer3_Shutdown()
 {
     ImGui_ImplSDLRenderer3_Data* bd = ImGui_ImplSDLRenderer3_GetBackendData();
@@ -99,6 +117,11 @@ void ImGui_ImplSDLRenderer3_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Resets the SDL_Renderer viewport and clip rectangle to defaults.
+ *
+ * Clears any custom viewport or clipping rectangle set on the renderer to ensure ImGui rendering uses the full target area.
+ */
 static void ImGui_ImplSDLRenderer3_SetupRenderState(SDL_Renderer* renderer)
 {
     // Clear out any viewports and cliprect set by the user
@@ -107,6 +130,11 @@ static void ImGui_ImplSDLRenderer3_SetupRenderState(SDL_Renderer* renderer)
     SDL_SetRenderClipRect(renderer, nullptr);
 }
 
+/**
+ * @brief Prepares the SDL3 renderer backend for a new ImGui frame.
+ *
+ * Ensures the backend is initialized before starting a new frame. Intended to be called at the beginning of each frame.
+ */
 void ImGui_ImplSDLRenderer3_NewFrame()
 {
     ImGui_ImplSDLRenderer3_Data* bd = ImGui_ImplSDLRenderer3_GetBackendData();
@@ -114,7 +142,14 @@ void ImGui_ImplSDLRenderer3_NewFrame()
     IM_UNUSED(bd);
 }
 
-// https://github.com/libsdl-org/SDL/issues/9009
+/**
+ * @brief Renders geometry using SDL_RenderGeometryRaw with 8-bit color conversion.
+ *
+ * Converts an array of SDL_Color (8-bit per channel) vertex colors to SDL_FColor (float per channel), stores the result in colors_out, and renders the geometry using SDL_RenderGeometryRaw.
+ *
+ * @param colors_out Output vector for converted float colors, resized to match the number of vertices.
+ * @return int Result of SDL_RenderGeometryRaw.
+ */
 static int SDL_RenderGeometryRaw8BitColor(SDL_Renderer* renderer, ImVector<SDL_FColor>& colors_out, SDL_Texture* texture, const float* xy, int xy_stride, const SDL_Color* color, int color_stride, const float* uv, int uv_stride, int num_vertices, const void* indices, int num_indices, int size_indices)
 {
     const Uint8* color2 = (const Uint8*)color;
@@ -132,6 +167,14 @@ static int SDL_RenderGeometryRaw8BitColor(SDL_Renderer* renderer, ImVector<SDL_F
     return SDL_RenderGeometryRaw(renderer, texture, xy, xy_stride, color3, sizeof(*color3), uv, uv_stride, num_vertices, indices, num_indices, size_indices);
 }
 
+/**
+ * @brief Renders Dear ImGui draw data using an SDL_Renderer.
+ *
+ * Processes ImGui's draw lists and issues rendering commands to the provided SDL_Renderer, handling texture binding, scissor clipping, and user callbacks. Automatically manages render state setup and restoration, applies framebuffer scaling, and updates textures as needed.
+ *
+ * @param draw_data Pointer to the ImDrawData to render.
+ * @param renderer SDL_Renderer instance to use for drawing.
+ */
 void ImGui_ImplSDLRenderer3_RenderDrawData(ImDrawData* draw_data, SDL_Renderer* renderer)
 {
     ImGui_ImplSDLRenderer3_Data* bd = ImGui_ImplSDLRenderer3_GetBackendData();
@@ -242,6 +285,11 @@ void ImGui_ImplSDLRenderer3_RenderDrawData(ImDrawData* draw_data, SDL_Renderer* 
     SDL_SetRenderClipRect(renderer, old.ClipEnabled ? &old.ClipRect : nullptr);
 }
 
+/**
+ * @brief Creates, updates, or destroys an SDL_Texture based on the texture's status.
+ *
+ * Handles the lifecycle of a texture used by the ImGui SDL3 renderer backend. Depending on the status of the provided texture, this function will create a new SDL_Texture and upload pixel data, update specified regions of an existing texture, or destroy the texture and clear its identifiers.
+ */
 void ImGui_ImplSDLRenderer3_UpdateTexture(ImTextureData* tex)
 {
     ImGui_ImplSDLRenderer3_Data* bd = ImGui_ImplSDLRenderer3_GetBackendData();
@@ -290,10 +338,20 @@ void ImGui_ImplSDLRenderer3_UpdateTexture(ImTextureData* tex)
     }
 }
 
+/**
+ * @brief Stub for creating device-dependent rendering objects.
+ *
+ * This function is provided for API compatibility but does not perform any operations in the SDL3 renderer backend.
+ */
 void ImGui_ImplSDLRenderer3_CreateDeviceObjects()
 {
 }
 
+/**
+ * @brief Destroys all SDL_Texture objects managed by the backend with a reference count of 1.
+ *
+ * Marks each such texture for destruction and releases its associated SDL_Texture resource.
+ */
 void ImGui_ImplSDLRenderer3_DestroyDeviceObjects()
 {
     // Destroy all textures

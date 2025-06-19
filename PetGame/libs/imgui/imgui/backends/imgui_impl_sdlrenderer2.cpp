@@ -55,19 +55,32 @@
 // SDL_Renderer data
 struct ImGui_ImplSDLRenderer2_Data
 {
-    SDL_Renderer*   Renderer;       // Main viewport's renderer
+    SDL_Renderer*   Renderer;       /**
+ * @brief Constructs an ImGui_ImplSDLRenderer2_Data object with all fields zero-initialized.
+ */
 
     ImGui_ImplSDLRenderer2_Data()   { memset((void*)this, 0, sizeof(*this)); }
 };
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
-// It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
+/**
+ * @brief Retrieves the backend data for the SDL_Renderer ImGui implementation.
+ *
+ * @return Pointer to the backend data structure if a current ImGui context exists, otherwise nullptr.
+ */
 static ImGui_ImplSDLRenderer2_Data* ImGui_ImplSDLRenderer2_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplSDLRenderer2_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
 }
 
-// Functions
+/**
+ * @brief Initializes the Dear ImGui SDL_Renderer backend with the specified SDL_Renderer.
+ *
+ * Sets up backend data, capabilities, and associates the SDL_Renderer for rendering ImGui draw data.
+ *
+ * @param renderer Pointer to an initialized SDL_Renderer to be used for ImGui rendering.
+ * @return true if initialization succeeds.
+ */
 bool ImGui_ImplSDLRenderer2_Init(SDL_Renderer* renderer)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -87,6 +100,11 @@ bool ImGui_ImplSDLRenderer2_Init(SDL_Renderer* renderer)
     return true;
 }
 
+/**
+ * @brief Shuts down the SDL_Renderer backend for Dear ImGui and releases associated resources.
+ *
+ * Destroys all device objects, clears backend state from ImGuiIO, and deletes backend data.
+ */
 void ImGui_ImplSDLRenderer2_Shutdown()
 {
     ImGui_ImplSDLRenderer2_Data* bd = ImGui_ImplSDLRenderer2_GetBackendData();
@@ -101,6 +119,11 @@ void ImGui_ImplSDLRenderer2_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Resets the SDL_Renderer viewport and clip rectangle to defaults.
+ *
+ * Clears any user-defined viewport or clip rectangle on the given SDL_Renderer to ensure rendering starts from a known state.
+ */
 static void ImGui_ImplSDLRenderer2_SetupRenderState(SDL_Renderer* renderer)
 {
     // Clear out any viewports and cliprect set by the user
@@ -109,6 +132,11 @@ static void ImGui_ImplSDLRenderer2_SetupRenderState(SDL_Renderer* renderer)
     SDL_RenderSetClipRect(renderer, nullptr);
 }
 
+/**
+ * @brief Prepares the SDL_Renderer backend for a new ImGui frame.
+ *
+ * Asserts that the backend has been initialized. Should be called at the start of each new ImGui frame.
+ */
 void ImGui_ImplSDLRenderer2_NewFrame()
 {
     ImGui_ImplSDLRenderer2_Data* bd = ImGui_ImplSDLRenderer2_GetBackendData();
@@ -116,6 +144,14 @@ void ImGui_ImplSDLRenderer2_NewFrame()
     IM_UNUSED(bd);
 }
 
+/**
+ * @brief Renders ImGui draw data using the specified SDL_Renderer.
+ *
+ * Projects ImGui's draw lists and commands to the SDL_Renderer, handling scaling, scissor clipping, texture binding, and geometry rendering. Backs up and restores the renderer's viewport and clip rectangle. Supports user callbacks and dynamic texture updates. Rendering is skipped if the framebuffer size is zero.
+ *
+ * @param draw_data ImGui draw data to render.
+ * @param renderer SDL_Renderer to use for rendering.
+ */
 void ImGui_ImplSDLRenderer2_RenderDrawData(ImDrawData* draw_data, SDL_Renderer* renderer)
 {
     // If there's a scale factor set by the user, use that instead
@@ -226,6 +262,11 @@ void ImGui_ImplSDLRenderer2_RenderDrawData(ImDrawData* draw_data, SDL_Renderer* 
     SDL_RenderSetClipRect(renderer, old.ClipEnabled ? &old.ClipRect : nullptr);
 }
 
+/**
+ * @brief Creates, updates, or destroys an SDL_Texture based on the status of the given ImTextureData.
+ *
+ * Handles texture creation by uploading pixel data to a new SDL_Texture, updates specified regions of an existing texture, or destroys the texture as requested by the ImTextureData status.
+ */
 void ImGui_ImplSDLRenderer2_UpdateTexture(ImTextureData* tex)
 {
     ImGui_ImplSDLRenderer2_Data* bd = ImGui_ImplSDLRenderer2_GetBackendData();
@@ -274,10 +315,20 @@ void ImGui_ImplSDLRenderer2_UpdateTexture(ImTextureData* tex)
     }
 }
 
+/**
+ * @brief Stub function for device object creation; not required for this backend.
+ *
+ * This backend does not require explicit device object creation beyond texture management.
+ */
 void ImGui_ImplSDLRenderer2_CreateDeviceObjects()
 {
 }
 
+/**
+ * @brief Destroys all SDL_Texture objects managed by the backend that are no longer referenced.
+ *
+ * Iterates over all ImTextureData objects in ImGui's platform IO and destroys textures with a reference count of one, releasing their associated SDL_Texture resources.
+ */
 void ImGui_ImplSDLRenderer2_DestroyDeviceObjects()
 {
     // Destroy all textures

@@ -83,17 +83,30 @@
 // OpenGL data
 struct ImGui_ImplOpenGL2_Data
 {
-    ImGui_ImplOpenGL2_Data() { memset((void*)this, 0, sizeof(*this)); }
+    /**
+ * @brief Constructs ImGui_ImplOpenGL2_Data and initializes all members to zero.
+ */
+ImGui_ImplOpenGL2_Data() { memset((void*)this, 0, sizeof(*this)); }
 };
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
-// It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
+/**
+ * @brief Retrieves the backend-specific data for the OpenGL2 renderer.
+ *
+ * @return Pointer to the ImGui_ImplOpenGL2_Data structure if a current ImGui context exists, otherwise nullptr.
+ */
 static ImGui_ImplOpenGL2_Data* ImGui_ImplOpenGL2_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplOpenGL2_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
 }
 
-// Functions
+/**
+ * @brief Initializes the Dear ImGui renderer backend for legacy OpenGL 2.
+ *
+ * Allocates and sets up backend-specific data, assigns backend flags, and registers the backend name with ImGui. Must be called before using the OpenGL2 renderer backend.
+ *
+ * @return true on successful initialization.
+ */
 bool    ImGui_ImplOpenGL2_Init()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -109,6 +122,11 @@ bool    ImGui_ImplOpenGL2_Init()
     return true;
 }
 
+/**
+ * @brief Shuts down the OpenGL2 renderer backend and releases associated resources.
+ *
+ * Cleans up backend data, destroys device objects, and resets ImGui IO renderer fields.
+ */
 void    ImGui_ImplOpenGL2_Shutdown()
 {
     ImGui_ImplOpenGL2_Data* bd = ImGui_ImplOpenGL2_GetBackendData();
@@ -122,6 +140,11 @@ void    ImGui_ImplOpenGL2_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Prepares the OpenGL2 renderer backend for a new ImGui frame.
+ *
+ * Asserts that the backend is initialized. No additional per-frame setup is performed.
+ */
 void    ImGui_ImplOpenGL2_NewFrame()
 {
     ImGui_ImplOpenGL2_Data* bd = ImGui_ImplOpenGL2_GetBackendData();
@@ -129,6 +152,15 @@ void    ImGui_ImplOpenGL2_NewFrame()
     IM_UNUSED(bd);
 }
 
+/**
+ * @brief Configures OpenGL 2 fixed-function pipeline state for ImGui rendering.
+ *
+ * Sets up blending, disables unnecessary tests and lighting, enables required client states, and configures the viewport and orthographic projection matrix based on the ImGui draw data and framebuffer size.
+ *
+ * @param draw_data ImGui draw data containing display position and size.
+ * @param fb_width Width of the framebuffer in pixels.
+ * @param fb_height Height of the framebuffer in pixels.
+ */
 static void ImGui_ImplOpenGL2_SetupRenderState(ImDrawData* draw_data, int fb_width, int fb_height)
 {
     // Setup render state: alpha-blending enabled, no face culling, no depth testing, scissor enabled, vertex/texcoord/color pointers, polygon fill.
@@ -175,7 +207,13 @@ static void ImGui_ImplOpenGL2_SetupRenderState(ImDrawData* draw_data, int fb_wid
 
 // OpenGL2 Render function.
 // Note that this implementation is little overcomplicated because we are saving/setting up/restoring every OpenGL state explicitly.
-// This is in order to be able to run within an OpenGL engine that doesn't do so.
+/**
+ * @brief Renders ImGui draw data using the OpenGL 2 fixed-function pipeline.
+ *
+ * Processes ImGui's draw lists and issues OpenGL commands to render UI elements. Handles texture updates, sets up OpenGL state, applies scissor rectangles, binds textures, and draws indexed primitives. Restores all modified OpenGL state after rendering to avoid interfering with the host application's OpenGL context.
+ *
+ * @param draw_data Pointer to the ImDrawData structure containing all ImGui rendering commands for the current frame.
+ */
 void ImGui_ImplOpenGL2_RenderDrawData(ImDrawData* draw_data)
 {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
@@ -264,6 +302,13 @@ void ImGui_ImplOpenGL2_RenderDrawData(ImDrawData* draw_data)
     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, last_tex_env_mode);
 }
 
+/**
+ * @brief Creates, updates, or destroys an OpenGL2 texture based on the texture's status.
+ *
+ * Handles uploading new texture data, updating specified regions, or deleting the texture from the GPU according to the status of the provided ImTextureData object.
+ *
+ * @param tex Pointer to the texture data object whose status determines the operation.
+ */
 void ImGui_ImplOpenGL2_UpdateTexture(ImTextureData* tex)
 {
     if (tex->Status == ImTextureStatus_WantCreate)
@@ -322,11 +367,23 @@ void ImGui_ImplOpenGL2_UpdateTexture(ImTextureData* tex)
     }
 }
 
+/**
+ * @brief Stub function for creating OpenGL2 device objects.
+ *
+ * This backend does not require explicit device object creation, so this function always returns true.
+ *
+ * @return true Always returns true.
+ */
 bool    ImGui_ImplOpenGL2_CreateDeviceObjects()
 {
     return true;
 }
 
+/**
+ * @brief Destroys OpenGL textures managed by the backend that are no longer in use.
+ *
+ * Iterates over all platform textures and deletes those with a reference count of 1 by marking them for destruction and invoking the texture update routine.
+ */
 void    ImGui_ImplOpenGL2_DestroyDeviceObjects()
 {
     for (ImTextureData* tex : ImGui::GetPlatformIO().Textures)

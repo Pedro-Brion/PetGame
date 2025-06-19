@@ -635,6 +635,10 @@ static HMODULE libgl;
 typedef PROC(__stdcall* GL3WglGetProcAddr)(LPCSTR);
 static GL3WglGetProcAddr wgl_get_proc_address;
 
+/**
+ * Loads the OpenGL library and retrieves the address of wglGetProcAddress on Windows.
+ * @returns GL3W_OK on success, or GL3W_ERROR_LIBRARY_OPEN if the library cannot be loaded.
+ */
 static int open_libgl(void)
 {
     libgl = LoadLibraryA("opengl32.dll");
@@ -644,7 +648,16 @@ static int open_libgl(void)
     return GL3W_OK;
 }
 
+/**
+ * Closes the dynamically loaded OpenGL library on Windows.
+ */
 static void close_libgl(void) { FreeLibrary(libgl); }
+/**
+ * Retrieves the address of an OpenGL function by name on Windows.
+ * Attempts to obtain the function pointer using `wglGetProcAddress`, falling back to `GetProcAddress` on the OpenGL library if necessary.
+ * @param proc Name of the OpenGL function.
+ * @return Pointer to the requested OpenGL function, or NULL if not found.
+ */
 static GL3WglProc get_proc(const char *proc)
 {
     GL3WglProc res;
@@ -657,6 +670,10 @@ static GL3WglProc get_proc(const char *proc)
 #include <dlfcn.h>
 
 static void *libgl;
+/**
+ * Loads the OpenGL framework library on macOS.
+ * @returns GL3W_OK on success, or GL3W_ERROR_LIBRARY_OPEN if the library could not be loaded.
+ */
 static int open_libgl(void)
 {
     libgl = dlopen("/System/Library/Frameworks/OpenGL.framework/OpenGL", RTLD_LAZY | RTLD_LOCAL);
@@ -665,8 +682,16 @@ static int open_libgl(void)
     return GL3W_OK;
 }
 
+/**
+ * Closes the dynamically loaded OpenGL library.
+ */
 static void close_libgl(void) { dlclose(libgl); }
 
+/**
+ * Retrieves the address of an OpenGL function from the loaded OpenGL library.
+ * @param proc Name of the OpenGL function to retrieve.
+ * @returns Pointer to the requested OpenGL function, or NULL if not found.
+ */
 static GL3WglProc get_proc(const char *proc)
 {
     GL3WglProc res;
@@ -681,6 +706,9 @@ static void* libglx;  // GLX library
 static void* libegl;  // EGL library
 static GL3WGetProcAddressProc gl_get_proc_address;
 
+/**
+ * Closes any dynamically loaded OpenGL, EGL, or GLX libraries and resets their handles.
+ */
 static void close_libgl(void)
 {
     if (libgl) {
@@ -697,12 +725,22 @@ static void close_libgl(void)
     }
 }
 
+/**
+ * Checks if a shared library is already loaded into the process.
+ * @param name Name of the shared library to check.
+ * @param lib Pointer to a variable that will receive the library handle if loaded.
+ * @returns Non-zero if the library is loaded, zero otherwise.
+ */
 static int is_library_loaded(const char* name, void** lib)
 {
     *lib = dlopen(name, RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
     return *lib != NULL;
 }
 
+/**
+ * Attempts to open the appropriate OpenGL libraries on Linux/Unix systems, prioritizing already loaded EGL or GLX libraries, and falls back to loading standard OpenGL libraries if necessary.
+ * @returns GL3W_OK on success, or GL3W_ERROR_LIBRARY_OPEN if no suitable library could be loaded.
+ */
 static int open_libs(void)
 {
     // On Linux we have two APIs to get process addresses: EGL and GLX.
@@ -756,6 +794,10 @@ static int open_libs(void)
     return GL3W_ERROR_LIBRARY_OPEN;
 }
 
+/**
+ * Loads the OpenGL library and resolves the platform-specific function used to retrieve OpenGL function pointers.
+ * @returns `GL3W_OK` on success, or `GL3W_ERROR_LIBRARY_OPEN` if the required function cannot be loaded.
+ */
 static int open_libgl(void)
 {
     int res = open_libs();
@@ -777,6 +819,12 @@ static int open_libgl(void)
     return GL3W_OK;
 }
 
+/**
+ * Retrieves the address of an OpenGL function by name, using platform-specific mechanisms.
+ * Attempts to resolve the function from the OpenGL library directly, then via the appropriate platform-specific function pointer retrieval method, and falls back to direct lookup if necessary.
+ * @param proc Name of the OpenGL function to retrieve.
+ * @return Pointer to the requested OpenGL function, or NULL if not found.
+ */
 static GL3WglProc get_proc(const char* proc)
 {
     GL3WglProc res = NULL;
@@ -799,6 +847,12 @@ static GL3WglProc get_proc(const char* proc)
 
 static struct { int major, minor; } version;
 
+/**
+ * Parses and stores the current OpenGL major and minor version numbers.
+ *
+ * Attempts to retrieve the OpenGL version using `glGetIntegerv` with `GL_MAJOR_VERSION` and `GL_MINOR_VERSION`. If unavailable, falls back to parsing the version string from `glGetString(GL_VERSION)`. Returns an error code if the OpenGL version is less than 2.0 or if initialization fails.
+ * @returns `GL3W_OK` on success, `GL3W_ERROR_INIT` if initialization fails, or `GL3W_ERROR_OPENGL_VERSION` if the OpenGL version is unsupported.
+ */
 static int parse_version(void)
 {
     if (!glGetIntegerv)
@@ -818,6 +872,10 @@ static int parse_version(void)
 
 static void load_procs(GL3WGetProcAddressProc proc);
 
+/**
+ * Initializes the OpenGL loader by opening the OpenGL library, registering cleanup on exit, and loading required function pointers.
+ * @returns `GL3W_OK` (0) on success, or a negative error code if initialization fails.
+ */
 int imgl3wInit(void)
 {
     int res = open_libgl();
@@ -827,12 +885,25 @@ int imgl3wInit(void)
     return imgl3wInit2(get_proc);
 }
 
+/**
+ * Initializes the OpenGL loader using a custom function pointer retrieval function.
+ *
+ * Loads all required OpenGL function pointers using the provided `proc` function and parses the current OpenGL version.
+ * @param proc Function used to retrieve OpenGL function pointers by name.
+ * @return `GL3W_OK` (0) on success, or a negative error code on failure.
+ */
 int imgl3wInit2(GL3WGetProcAddressProc proc)
 {
     load_procs(proc);
     return parse_version();
 }
 
+/**
+ * Checks if the current OpenGL context supports at least the specified major and minor version.
+ * @param major Required OpenGL major version.
+ * @param minor Required OpenGL minor version.
+ * @return Nonzero if the context supports the specified version or higher, zero otherwise.
+ */
 int imgl3wIsSupported(int major, int minor)
 {
     if (major < 2)
@@ -842,6 +913,11 @@ int imgl3wIsSupported(int major, int minor)
     return version.major >= major;
 }
 
+/**
+ * Returns the address of the specified OpenGL function.
+ * @param proc Name of the OpenGL function to retrieve.
+ * @return Pointer to the requested OpenGL function, or NULL if not found.
+ */
 GL3WglProc imgl3wGetProcAddress(const char *proc) { return get_proc(proc); }
 
 static const char *proc_names[] = {
@@ -909,6 +985,12 @@ static const char *proc_names[] = {
 
 GL3W_API union ImGL3WProcs imgl3wProcs;
 
+/**
+ * Loads OpenGL function pointers using the provided function address retrieval callback.
+ * 
+ * Iterates over the list of required OpenGL function names and assigns their addresses to the corresponding entries in the global function pointer union.
+ * @param proc Callback function used to retrieve the address of each OpenGL function by name.
+ */
 static void load_procs(GL3WGetProcAddressProc proc)
 {
     size_t i;

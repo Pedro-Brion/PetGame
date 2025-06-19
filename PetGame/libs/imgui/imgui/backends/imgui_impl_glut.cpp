@@ -50,7 +50,14 @@
 
 static int g_Time = 0;          // Current time, in milliseconds
 
-// Glut has one function for characters and one for "special keys". We map the characters in the 0..255 range and the keys above.
+/**
+ * @brief Maps a GLUT key code or ASCII character to the corresponding ImGuiKey.
+ *
+ * Converts GLUT keyboard and special key codes, including ASCII characters and function keys, to ImGuiKey enums for input handling. Returns ImGuiKey_None if the key is not mapped.
+ *
+ * @param key GLUT key code or ASCII character.
+ * @return ImGuiKey Corresponding ImGuiKey enum, or ImGuiKey_None if unmapped.
+ */
 static ImGuiKey ImGui_ImplGLUT_KeyToImGuiKey(int key)
 {
     switch (key)
@@ -164,6 +171,14 @@ static ImGuiKey ImGui_ImplGLUT_KeyToImGuiKey(int key)
     }
 }
 
+/**
+ * @brief Initializes the Dear ImGui platform backend for GLUT or FreeGLUT.
+ *
+ * Sets the backend platform name and resets internal timing state.
+ * Must be called before using other ImGui GLUT backend functions.
+ *
+ * @return true on successful initialization.
+ */
 bool ImGui_ImplGLUT_Init()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -179,6 +194,11 @@ bool ImGui_ImplGLUT_Init()
     return true;
 }
 
+/**
+ * @brief Installs GLUT callback functions to forward input and window events to Dear ImGui.
+ *
+ * Sets up GLUT event handlers for keyboard, mouse, motion, and window resize events, enabling ImGui to receive and process user input through the GLUT backend.
+ */
 void ImGui_ImplGLUT_InstallFuncs()
 {
     glutReshapeFunc(ImGui_ImplGLUT_ReshapeFunc);
@@ -194,12 +214,22 @@ void ImGui_ImplGLUT_InstallFuncs()
     glutSpecialUpFunc(ImGui_ImplGLUT_SpecialUpFunc);
 }
 
+/**
+ * @brief Shuts down the ImGui GLUT platform backend.
+ *
+ * Clears the backend platform name to indicate that the GLUT backend is no longer active.
+ */
 void ImGui_ImplGLUT_Shutdown()
 {
     ImGuiIO& io = ImGui::GetIO();
     io.BackendPlatformName = nullptr;
 }
 
+/**
+ * @brief Updates ImGui's frame timing using GLUT's elapsed time.
+ *
+ * Calculates and sets the time delta between frames for ImGui, ensuring a minimum delta of 1 millisecond.
+ */
 void ImGui_ImplGLUT_NewFrame()
 {
     // Setup time step
@@ -212,6 +242,11 @@ void ImGui_ImplGLUT_NewFrame()
     g_Time = current_time;
 }
 
+/**
+ * @brief Updates ImGui's modifier key states based on the current GLUT modifier state.
+ *
+ * Queries GLUT for the current status of Ctrl, Shift, and Alt keys and updates ImGui's input system accordingly.
+ */
 static void ImGui_ImplGLUT_UpdateKeyModifiers()
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -221,6 +256,15 @@ static void ImGui_ImplGLUT_UpdateKeyModifiers()
     io.AddKeyEvent(ImGuiMod_Alt, (glut_key_mods & GLUT_ACTIVE_ALT) != 0);
 }
 
+/**
+ * @brief Adds a key press or release event to ImGui's input system.
+ *
+ * Associates the event with the specified ImGuiKey and native keycode for compatibility with legacy code.
+ *
+ * @param key The ImGuiKey representing the key.
+ * @param down True if the key is pressed, false if released.
+ * @param native_keycode The platform-specific keycode for legacy support.
+ */
 static void ImGui_ImplGLUT_AddKeyEvent(ImGuiKey key, bool down, int native_keycode)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -228,6 +272,11 @@ static void ImGui_ImplGLUT_AddKeyEvent(ImGuiKey key, bool down, int native_keyco
     io.SetKeyEventNativeData(key, native_keycode, -1); // To support legacy indexing (<1.87 user code)
 }
 
+/**
+ * @brief Handles GLUT character key press events and forwards them to ImGui.
+ *
+ * Adds printable characters to ImGui's input queue and updates ImGui's key state for the pressed key. Also updates the current state of modifier keys.
+ */
 void ImGui_ImplGLUT_KeyboardFunc(unsigned char c, int x, int y)
 {
     // Send character to imgui
@@ -242,6 +291,11 @@ void ImGui_ImplGLUT_KeyboardFunc(unsigned char c, int x, int y)
     (void)x; (void)y; // Unused
 }
 
+/**
+ * @brief Handles GLUT character key release events and forwards them to ImGui.
+ *
+ * Converts the released GLUT character key to an ImGuiKey and adds a key up event to ImGui's input system. Also updates the current state of modifier keys.
+ */
 void ImGui_ImplGLUT_KeyboardUpFunc(unsigned char c, int x, int y)
 {
     //printf("char_up_func %d '%c'\n", c, c);
@@ -251,6 +305,11 @@ void ImGui_ImplGLUT_KeyboardUpFunc(unsigned char c, int x, int y)
     (void)x; (void)y; // Unused
 }
 
+/**
+ * @brief Handles GLUT special key press events and forwards them to ImGui.
+ *
+ * Converts GLUT special key codes (such as function keys and arrows) to ImGuiKey values and adds a key down event to ImGui's input system. Also updates the current state of modifier keys.
+ */
 void ImGui_ImplGLUT_SpecialFunc(int key, int x, int y)
 {
     //printf("key_down_func %d\n", key);
@@ -260,6 +319,11 @@ void ImGui_ImplGLUT_SpecialFunc(int key, int x, int y)
     (void)x; (void)y; // Unused
 }
 
+/**
+ * @brief Handles GLUT special key release events and forwards them to ImGui.
+ *
+ * Converts the released GLUT special key to an ImGuiKey and adds a key up event to ImGui's input system. Updates modifier key states. Mouse position parameters are ignored.
+ */
 void ImGui_ImplGLUT_SpecialUpFunc(int key, int x, int y)
 {
     //printf("key_up_func %d\n", key);
@@ -269,6 +333,11 @@ void ImGui_ImplGLUT_SpecialUpFunc(int key, int x, int y)
     (void)x; (void)y; // Unused
 }
 
+/**
+ * @brief Handles GLUT mouse button events and forwards them to ImGui.
+ *
+ * Updates ImGui with the current mouse position and reports mouse button press or release events for left, right, and middle buttons.
+ */
 void ImGui_ImplGLUT_MouseFunc(int glut_button, int state, int x, int y)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -282,6 +351,11 @@ void ImGui_ImplGLUT_MouseFunc(int glut_button, int state, int x, int y)
 }
 
 #ifdef __FREEGLUT_EXT_H__
+/**
+ * @brief Handles mouse wheel events from GLUT and forwards them to ImGui.
+ *
+ * Updates ImGui's mouse position and adds a vertical mouse wheel event with direction based on the input. The button parameter is ignored.
+ */
 void ImGui_ImplGLUT_MouseWheelFunc(int button, int dir, int x, int y)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -292,12 +366,24 @@ void ImGui_ImplGLUT_MouseWheelFunc(int button, int dir, int x, int y)
 }
 #endif
 
+/**
+ * @brief Updates ImGui's display size when the GLUT window is resized.
+ *
+ * @param w New window width in pixels.
+ * @param h New window height in pixels.
+ */
 void ImGui_ImplGLUT_ReshapeFunc(int w, int h)
 {
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2((float)w, (float)h);
 }
 
+/**
+ * @brief Updates ImGui with the current mouse cursor position from a GLUT motion event.
+ *
+ * @param x The x-coordinate of the mouse cursor.
+ * @param y The y-coordinate of the mouse cursor.
+ */
 void ImGui_ImplGLUT_MotionFunc(int x, int y)
 {
     ImGuiIO& io = ImGui::GetIO();

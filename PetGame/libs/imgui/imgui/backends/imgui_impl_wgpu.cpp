@@ -120,7 +120,11 @@ struct ImGui_ImplWGPU_Data
 };
 
 // Backend data stored in io.BackendRendererUserData to allow support for multiple Dear ImGui contexts
-// It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
+/**
+ * @brief Retrieves the backend data for the current Dear ImGui context.
+ *
+ * @return Pointer to the ImGui_ImplWGPU_Data structure if a current context exists, otherwise nullptr.
+ */
 static ImGui_ImplWGPU_Data* ImGui_ImplWGPU_GetBackendData()
 {
     return ImGui::GetCurrentContext() ? (ImGui_ImplWGPU_Data*)ImGui::GetIO().BackendRendererUserData : nullptr;
@@ -184,60 +188,110 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 )";
 
+/**
+ * @brief Safely deletes and nullifies a dynamically allocated ImDrawIdx array.
+ *
+ * Releases the memory held by the given ImDrawIdx pointer and sets it to nullptr.
+ */
 static void SafeRelease(ImDrawIdx*& res)
 {
     if (res)
         delete[] res;
     res = nullptr;
 }
+/**
+ * @brief Safely deletes and nullifies a dynamically allocated ImDrawVert array.
+ *
+ * Frees the memory pointed to by the given ImDrawVert pointer if it is not null, then sets the pointer to nullptr.
+ */
 static void SafeRelease(ImDrawVert*& res)
 {
     if (res)
         delete[] res;
     res = nullptr;
 }
+/**
+ * @brief Safely releases a WGPUBindGroupLayout resource and sets it to nullptr.
+ *
+ * If the resource is non-null, releases it using wgpuBindGroupLayoutRelease and nullifies the reference.
+ */
 static void SafeRelease(WGPUBindGroupLayout& res)
 {
     if (res)
         wgpuBindGroupLayoutRelease(res);
     res = nullptr;
 }
+/**
+ * @brief Safely releases a WGPUBindGroup and sets the reference to nullptr.
+ *
+ * If the bind group is non-null, releases its resources and nullifies the reference.
+ */
 static void SafeRelease(WGPUBindGroup& res)
 {
     if (res)
         wgpuBindGroupRelease(res);
     res = nullptr;
 }
+/**
+ * @brief Safely releases a WGPUBuffer and sets its reference to nullptr.
+ *
+ * If the buffer is non-null, releases its resources and nullifies the reference.
+ */
 static void SafeRelease(WGPUBuffer& res)
 {
     if (res)
         wgpuBufferRelease(res);
     res = nullptr;
 }
+/**
+ * @brief Safely releases a WGPUPipelineLayout resource and sets its reference to null.
+ *
+ * If the resource is non-null, releases it using wgpuPipelineLayoutRelease and resets the reference.
+ */
 static void SafeRelease(WGPUPipelineLayout& res)
 {
     if (res)
         wgpuPipelineLayoutRelease(res);
     res = nullptr;
 }
+/**
+ * @brief Safely releases a WGPURenderPipeline resource and sets its reference to null.
+ *
+ * If the pipeline is non-null, releases it using the WebGPU API and resets the reference.
+ */
 static void SafeRelease(WGPURenderPipeline& res)
 {
     if (res)
         wgpuRenderPipelineRelease(res);
     res = nullptr;
 }
+/**
+ * @brief Safely releases a WGPUSampler resource and sets its reference to null.
+ *
+ * If the sampler is non-null, releases it using wgpuSamplerRelease and resets the reference.
+ */
 static void SafeRelease(WGPUSampler& res)
 {
     if (res)
         wgpuSamplerRelease(res);
     res = nullptr;
 }
+/**
+ * @brief Safely releases a WGPUShaderModule and sets the reference to nullptr.
+ *
+ * If the shader module is non-null, releases its resources and nullifies the reference.
+ */
 static void SafeRelease(WGPUShaderModule& res)
 {
     if (res)
         wgpuShaderModuleRelease(res);
     res = nullptr;
 }
+/**
+ * @brief Releases and nullifies all WebGPU resources held by the given RenderResources structure.
+ *
+ * Frees the sampler, uniform buffer, common bind group, and image bind group layout associated with the provided RenderResources instance.
+ */
 static void SafeRelease(RenderResources& res)
 {
     SafeRelease(res.Sampler);
@@ -246,6 +300,11 @@ static void SafeRelease(RenderResources& res)
     SafeRelease(res.ImageBindGroupLayout);
 };
 
+/**
+ * @brief Safely releases and nullifies all GPU and host buffers in the given frame resources.
+ *
+ * Frees the index and vertex buffers, both on the GPU and host, associated with the specified frame resources.
+ */
 static void SafeRelease(FrameResources& res)
 {
     SafeRelease(res.IndexBuffer);
@@ -254,6 +313,14 @@ static void SafeRelease(FrameResources& res)
     SafeRelease(res.VertexBufferHost);
 }
 
+/**
+ * @brief Creates a programmable stage descriptor from WGSL shader source code.
+ *
+ * Compiles the provided WGSL source into a WebGPU shader module and returns a programmable stage descriptor with the entry point set to "main".
+ *
+ * @param wgsl_source Null-terminated WGSL shader source code.
+ * @return WGPUProgrammableStageDescriptor Descriptor referencing the compiled shader module and entry point.
+ */
 static WGPUProgrammableStageDescriptor ImGui_ImplWGPU_CreateShaderModule(const char* wgsl_source)
 {
     ImGui_ImplWGPU_Data* bd = ImGui_ImplWGPU_GetBackendData();
@@ -282,6 +349,13 @@ static WGPUProgrammableStageDescriptor ImGui_ImplWGPU_CreateShaderModule(const c
     return stage_desc;
 }
 
+/**
+ * @brief Creates a WebGPU bind group for a given texture view using the specified bind group layout.
+ *
+ * @param layout The bind group layout to use for the bind group.
+ * @param texture The texture view to bind.
+ * @return WGPUBindGroup The created bind group for the texture view.
+ */
 static WGPUBindGroup ImGui_ImplWGPU_CreateImageBindGroup(WGPUBindGroupLayout layout, WGPUTextureView texture)
 {
     ImGui_ImplWGPU_Data* bd = ImGui_ImplWGPU_GetBackendData();
@@ -294,6 +368,15 @@ static WGPUBindGroup ImGui_ImplWGPU_CreateImageBindGroup(WGPUBindGroupLayout lay
     return wgpuDeviceCreateBindGroup(bd->wgpuDevice, &image_bg_descriptor);
 }
 
+/**
+ * @brief Configures the WebGPU render state for ImGui rendering.
+ *
+ * Sets up the orthographic projection matrix and gamma correction in the uniform buffer, configures the viewport, binds the vertex and index buffers, sets the render pipeline and common bind group, and initializes the blend constant for the given render pass encoder.
+ *
+ * @param draw_data ImGui draw data containing display and framebuffer information.
+ * @param ctx WebGPU render pass encoder to configure.
+ * @param fr Frame resources containing vertex and index buffers for the current frame.
+ */
 static void ImGui_ImplWGPU_SetupRenderState(ImDrawData* draw_data, WGPURenderPassEncoder ctx, FrameResources* fr)
 {
     ImGui_ImplWGPU_Data* bd = ImGui_ImplWGPU_GetBackendData();
@@ -361,7 +444,14 @@ static void ImGui_ImplWGPU_SetupRenderState(ImDrawData* draw_data, WGPURenderPas
 }
 
 // Render function
-// (this used to be set in io.RenderDrawListsFn and called by ImGui::Render(), but you can now call this directly from your main loop)
+/**
+ * @brief Renders Dear ImGui draw data using a WebGPU render pass encoder.
+ *
+ * Uploads ImGui vertex and index data to GPU buffers, manages dynamic buffer resizing, updates textures as needed, sets up render state, binds textures, applies scissor rectangles, and issues draw calls for all ImGui command lists. Supports user callbacks and custom texture bindings. Should be called once per frame with valid draw data and a WebGPU render pass encoder.
+ *
+ * @param draw_data Pointer to ImDrawData containing ImGui's draw lists and rendering information.
+ * @param pass_encoder WebGPU render pass encoder to record rendering commands.
+ */
 void ImGui_ImplWGPU_RenderDrawData(ImDrawData* draw_data, WGPURenderPassEncoder pass_encoder)
 {
     // Avoid rendering when minimized
@@ -532,6 +622,11 @@ void ImGui_ImplWGPU_RenderDrawData(ImDrawData* draw_data, WGPURenderPassEncoder 
     platform_io.Renderer_RenderState = nullptr;
 }
 
+/**
+ * @brief Releases and destroys the WebGPU resources associated with a texture.
+ *
+ * Frees the WebGPU texture and texture view, deletes backend-specific texture data, and updates the texture's status and identifiers to reflect destruction.
+ */
 static void ImGui_ImplWGPU_DestroyTexture(ImTextureData* tex)
 {
     ImGui_ImplWGPU_Texture* backend_tex = (ImGui_ImplWGPU_Texture*)tex->BackendUserData;
@@ -549,6 +644,11 @@ static void ImGui_ImplWGPU_DestroyTexture(ImTextureData* tex)
     tex->BackendUserData = nullptr;
 }
 
+/**
+ * @brief Creates, updates, or destroys a WebGPU texture based on the texture's status.
+ *
+ * Handles creation of a new GPU texture and view when requested, uploads pixel data for full or partial updates, and destroys the texture if marked for deletion and unused. Supports both initial creation and incremental updates using the provided pixel data and update rectangle.
+ */
 void ImGui_ImplWGPU_UpdateTexture(ImTextureData* tex)
 {
     ImGui_ImplWGPU_Data* bd = ImGui_ImplWGPU_GetBackendData();
@@ -632,6 +732,11 @@ void ImGui_ImplWGPU_UpdateTexture(ImTextureData* tex)
         ImGui_ImplWGPU_DestroyTexture(tex);
 }
 
+/**
+ * @brief Creates and allocates the uniform buffer used for rendering.
+ *
+ * Initializes the uniform buffer for storing the MVP matrix and gamma correction value required by the shaders.
+ */
 static void ImGui_ImplWGPU_CreateUniformBuffer()
 {
     ImGui_ImplWGPU_Data* bd = ImGui_ImplWGPU_GetBackendData();
@@ -649,6 +754,13 @@ static void ImGui_ImplWGPU_CreateUniformBuffer()
     bd->renderResources.Uniforms = wgpuDeviceCreateBuffer(bd->wgpuDevice, &ub_desc);
 }
 
+/**
+ * @brief Creates and initializes all WebGPU device objects required for ImGui rendering.
+ *
+ * Sets up the render pipeline, shader modules, vertex input layout, blending, depth-stencil state, uniform buffer, sampler, and resource bind groups. Recreates resources if they already exist.
+ *
+ * @return true if device objects were successfully created, false if the WebGPU device is unavailable.
+ */
 bool ImGui_ImplWGPU_CreateDeviceObjects()
 {
     ImGui_ImplWGPU_Data* bd = ImGui_ImplWGPU_GetBackendData();
@@ -808,6 +920,11 @@ bool ImGui_ImplWGPU_CreateDeviceObjects()
     return true;
 }
 
+/**
+ * @brief Releases all WebGPU device objects and resources used by the ImGui WebGPU renderer backend.
+ *
+ * Frees the render pipeline, render resources, textures with a reference count of 1, and all per-frame resources. This function is typically called during shutdown or when the device is lost to ensure proper cleanup of GPU resources.
+ */
 void ImGui_ImplWGPU_InvalidateDeviceObjects()
 {
     ImGui_ImplWGPU_Data* bd = ImGui_ImplWGPU_GetBackendData();
@@ -826,6 +943,14 @@ void ImGui_ImplWGPU_InvalidateDeviceObjects()
         SafeRelease(bd->pFrameResources[i]);
 }
 
+/**
+ * @brief Initializes the Dear ImGui WebGPU renderer backend with the specified configuration.
+ *
+ * Sets up backend data structures, renderer capabilities, and allocates per-frame resources for rendering with WebGPU. Must be called before using the renderer.
+ *
+ * @param init_info Pointer to initialization information specifying device, formats, and frame count.
+ * @return true if initialization succeeds.
+ */
 bool ImGui_ImplWGPU_Init(ImGui_ImplWGPU_InitInfo* init_info)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -877,6 +1002,11 @@ bool ImGui_ImplWGPU_Init(ImGui_ImplWGPU_InitInfo* init_info)
     return true;
 }
 
+/**
+ * @brief Shuts down the ImGui WebGPU renderer backend and releases all associated resources.
+ *
+ * Cleans up device objects, frame resources, and resets backend state in ImGui IO.
+ */
 void ImGui_ImplWGPU_Shutdown()
 {
     ImGui_ImplWGPU_Data* bd = ImGui_ImplWGPU_GetBackendData();
@@ -897,6 +1027,11 @@ void ImGui_ImplWGPU_Shutdown()
     IM_DELETE(bd);
 }
 
+/**
+ * @brief Prepares the WebGPU renderer backend for a new ImGui frame.
+ *
+ * Ensures that device objects and pipeline state are created before rendering the next frame.
+ */
 void ImGui_ImplWGPU_NewFrame()
 {
     ImGui_ImplWGPU_Data* bd = ImGui_ImplWGPU_GetBackendData();
