@@ -20,5 +20,5 @@ void main()
     Out.Color = aColor;
     Out.UV = aUV;
     gl_Position = vec4(aPos * ubo.uScale + ubo.uTranslate, 0, 1);
-    gl_Position.y *= -1.0f;
+    gl_Position.y *= -1.0;
 }
