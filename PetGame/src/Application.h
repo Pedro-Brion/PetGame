@@ -42,6 +42,7 @@ namespace PetGame {
 		void UpdateRender();
 		void FixedUpdate();
 		void Render();
+		void RenderUi();
 
 	};
 }

@@ -122,33 +122,10 @@ namespace PetGame {
 
 			glfwPollEvents();
 
-			ImGui_ImplOpenGL3_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
-			ImGui::NewFrame();
+			PetGame::Application::RenderUi();
 
-			ImGui::SetNextWindowSize(ImVec2(m_windowWidth, 50), ImGuiCond_Always); // Set size (width, height)
-			ImGui::SetNextWindowPos(ImVec2(0, m_windowHeight - 50), ImGuiCond_Always);  // Set position (x, y)
-
-			ImGuiWindowFlags flags =
-				ImGuiWindowFlags_NoResize
-				| ImGuiWindowFlags_NoMove
-				| ImGuiWindowFlags_NoCollapse;
-			if (m_guiOpen)
-			{
-				if (ImGui::Begin("DigiPet", &m_guiOpen, flags)) {
-					ImGui::Text(m_pet->getName().c_str());
-					ImGui::End();
-				}
-				else {
-					ImGui::End();
-				}
-			}
-
-			//ImGui::ShowDemoWindow();
-
-
-			ProcessInputs();
-			Render();
+			PetGame::Application::ProcessInputs();
+			PetGame::Application::Render();
 		}
 	}
 
@@ -234,6 +211,59 @@ namespace PetGame {
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		glfwSwapBuffers(m_window);
+	}
+
+	void Application::RenderUi()
+	{
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		ImGui::SetNextWindowSize(ImVec2(m_windowWidth, 100), ImGuiCond_Always); // Set size (width, height)
+		ImGui::SetNextWindowPos(ImVec2(0, m_windowHeight - 100), ImGuiCond_Always);  // Set position (x, y)
+
+		ImGuiWindowFlags flags =
+			ImGuiWindowFlags_NoResize
+			| ImGuiWindowFlags_NoMove
+			| ImGuiWindowFlags_NoCollapse;
+		if (m_guiOpen)
+		{
+			ImVec4 green(0.082f, 0.494f, 0.082f,0.f);
+			ImGuiStyle& style = ImGui::GetStyle();
+			style.Colors[ImGuiCol_WindowBg] = ImVec4(green.x, green.y, green.z, 0.5f);
+			style.Colors[ImGuiCol_TitleBgActive] = ImVec4(green.x, green.y, green.z, 1.f);
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(green.x, green.y, green.z, 1.f));
+			if (ImGui::Begin("DigiPet Status", &m_guiOpen, flags)) {
+				// Status
+				ImGui::BeginGroup();
+				{
+					ImGui::Text("Name: %s", m_pet->getName().c_str());
+					ImGui::Text("Level: %s", m_pet->getLevel().c_str());
+					ImGui::Text("Hunger: %d/100", m_pet->getHunger());
+				}
+				ImGui::EndGroup();
+
+				ImGui::SameLine(0,80);
+				ImGui::BeginGroup();
+				{
+					ImVec2 size = ImGui::GetItemRectSize();
+					if (ImGui::Button("Feed", ImVec2((size.x - ImGui::GetStyle().ItemSpacing.x) * 0.5f, size.y / 2))) {
+						m_pet->feed(m_tickCount);
+					}
+					
+					ImGui::Button("Train", ImVec2((size.x - ImGui::GetStyle().ItemSpacing.x) * 0.5f, size.y /2));
+				}
+				ImGui::EndGroup();
+
+				ImGui::End();
+			}
+			else {
+				ImGui::End();
+			}
+			ImGui::PopStyleColor();
+		}
+
+		ImGui::ShowDemoWindow();
 	}
 
 	static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
