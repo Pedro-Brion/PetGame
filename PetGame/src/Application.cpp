@@ -43,6 +43,8 @@ namespace PetGame {
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+		//glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+		glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
 
 		m_window = glfwCreateWindow(m_windowWidth, m_windowHeight, windowTitle, nullptr, nullptr);
 		glfwSetWindowUserPointer(m_window, this);
@@ -58,6 +60,28 @@ namespace PetGame {
 			std::cout << "Failed to create window" << std::endl;
 			Stop();
 			return false;
+		}
+
+		// Center Window
+		GLFWmonitor* primaryMonitor = glfwGetPrimaryMonitor();
+		if (primaryMonitor == NULL) {
+			std::cerr << "Falha ao obter o monitor primário. A janela pode não aparecer centralizada." << std::endl;
+		}
+		else {
+			const GLFWvidmode* mode = glfwGetVideoMode(primaryMonitor);
+			if (mode == NULL) {
+				std::cerr << "Falha ao obter o modo de vídeo do monitor. A janela pode não aparecer centralizada." << std::endl;
+			}
+			else {
+				int monitorX, monitorY;
+				glfwGetMonitorPos(primaryMonitor, &monitorX, &monitorY); 
+
+				int windowPosX = monitorX + (mode->width - m_windowWidth) / 2;
+				int windowPosY = monitorY + (mode->height - m_windowHeight) / 2;
+
+				// 4. Mova a janela para a posição calculada.
+				glfwSetWindowPos(m_window, windowPosX, windowPosY);
+			}
 		}
 
 
@@ -203,7 +227,7 @@ namespace PetGame {
 
 	void Application::Render()
 	{
-		glClearColor(.941f, .917f, .854f, 1.f);
+		glClearColor(.941f, .917f, .854f, .2f);
 		glClear(GL_COLOR_BUFFER_BIT);
 		UpdateRender();
 
@@ -228,7 +252,7 @@ namespace PetGame {
 			| ImGuiWindowFlags_NoCollapse;
 		if (m_guiOpen)
 		{
-			ImVec4 green(0.082f, 0.494f, 0.082f,0.f);
+			ImVec4 green(0.082f, 0.494f, 0.082f, 0.f);
 			ImGuiStyle& style = ImGui::GetStyle();
 			style.Colors[ImGuiCol_WindowBg] = ImVec4(green.x, green.y, green.z, 0.5f);
 			style.Colors[ImGuiCol_TitleBgActive] = ImVec4(green.x, green.y, green.z, 1.f);
@@ -243,15 +267,15 @@ namespace PetGame {
 				}
 				ImGui::EndGroup();
 
-				ImGui::SameLine(0,80);
+				ImGui::SameLine(0, 80);
 				ImGui::BeginGroup();
 				{
 					ImVec2 size = ImGui::GetItemRectSize();
 					if (ImGui::Button("Feed", ImVec2((size.x - ImGui::GetStyle().ItemSpacing.x) * 0.5f, size.y / 2))) {
 						m_pet->feed(m_tickCount);
 					}
-					
-					ImGui::Button("Train", ImVec2((size.x - ImGui::GetStyle().ItemSpacing.x) * 0.5f, size.y /2));
+
+					ImGui::Button("Train", ImVec2((size.x - ImGui::GetStyle().ItemSpacing.x) * 0.5f, size.y / 2));
 				}
 				ImGui::EndGroup();
 
